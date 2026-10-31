@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.kayiphazineler.oyun'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.kayiphazineler.oyun'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// Oyunun tek kaynağı projenin kökündeki index.html. Derlemeden önce
+// tam bir HTML sayfasına sarılıp uygulamanın içine kopyalanır.
+def gameSrc = rootProject.file('../index.html')
+def gameOut = file('src/main/assets/game/index.html')
+
+tasks.register('syncGame') {
+    inputs.file gameSrc
+    outputs.file gameOut
+    doLast {
+        def body = gameSrc.getText('UTF-8').readLines()
+                .findAll { !it.contains('fonts.googleapis.com') && !it.contains('fonts.gstatic.com') }
+                .join('\n')
+        gameOut.setText('''<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="stylesheet" href="fonts.css">
+</head>
+<body>
+''' + body + '\n</body>\n</html>\n', 'UTF-8')
+    }
+}
+preBuild.dependsOn syncGame

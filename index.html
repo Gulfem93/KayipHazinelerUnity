@@ -1,0 +1,2280 @@
+<title>Labirent: Kayıp Hazineler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Tek ekranlı mobil oyun: üstte portre + can/XP, ortada meşaleli taş labirent, altta joystick ve savaş düğmeleri. Bilinçli olarak tek (gece mavisi zindan) tema. */
+:root {
+  color-scheme: dark;
+  --bg: #0a101d;
+  --panel: #111a2c;
+  --panel2: #0c1322;
+  --line: #22314f;
+  --line2: #3a5080;
+  --fg: #e9eef8;
+  --muted: #93a2c0;
+  --gold: #f5c04a;
+  --gold2: #a3741f;
+  --hp: #e0413f;
+  --xp: #3d8bff;
+  --ok: #5fcf7a;
+  --display: "Cinzel", "Times New Roman", serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+[hidden] { display: none !important; }
+body {
+  height: 100%; margin: 0; overflow: hidden;
+  background: radial-gradient(120% 70% at 50% 0%, #142039 0%, var(--bg) 60%) var(--bg);
+  color: var(--fg); font-family: var(--body); font-weight: 700;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#app {
+  height: 100%; max-width: 560px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: 8px;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+canvas.px { image-rendering: pixelated; }
+
+/* Üst durum çubuğu */
+.hud { display: flex; align-items: center; gap: 10px; }
+.who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.portrait {
+  width: 48px; height: 48px; border-radius: 50%; flex: none;
+  border: 2px solid var(--line2); background: #1a2440; overflow: hidden;
+}
+.portrait canvas { width: 100%; height: 100%; display: block; }
+.bars { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hprow { display: flex; align-items: center; gap: 6px; }
+.hprow > span { font-size: 12px; font-weight: 900; letter-spacing: .04em; }
+.hpbar { position: relative; flex: 1; height: 16px; border-radius: 4px; background: #2a1420; border: 1px solid #5a2430; overflow: hidden; }
+.hpbar i { position: absolute; inset: 0 auto 0 0; width: 100%; background: linear-gradient(#ff6a5c, var(--hp) 55%, #a82a2a); transition: width .15s; }
+.hpbar em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 900; text-shadow: 0 1px 0 #000, 0 0 3px #000; font-variant-numeric: tabular-nums; }
+.lvrow { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gold); font-weight: 900; min-width: 0; }
+#lvTxt { max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.namebox { display: grid; gap: 6px; }
+.namebox label { font-size: 13px; color: var(--muted); }
+.namerow { display: flex; gap: 8px; }
+.namerow input {
+  flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line2);
+  background: #0c1322; color: var(--fg); font: 800 17px var(--body); user-select: text; -webkit-user-select: text; touch-action: manipulation;
+}
+.namerow input:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
+.namerow .btn { flex: none; padding: 10px 12px; font-size: 14px; }
+.xpbar { flex: 1; height: 5px; border-radius: 3px; background: #142342; overflow: hidden; }
+.xpbar i { display: block; height: 100%; width: 0; background: var(--xp); transition: width .2s; }
+.right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.goldchip { display: flex; align-items: center; gap: 5px; font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.coin {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #ffe8a0, var(--gold) 55%, #b07a1c);
+  box-shadow: inset 0 0 0 2px #c8901f;
+}
+.score { font-size: 11px; background: #0c1322; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+.iconbtn {
+  width: 40px; height: 40px; border-radius: 8px; flex: none;
+  background: #16213a; border: 1px solid var(--line2); font-weight: 900; font-size: 14px; letter-spacing: 1px;
+}
+.floorbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.floorbar .theme { color: var(--fg); }
+.shiftbox { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.shiftbar { width: 64px; height: 5px; border-radius: 3px; background: #142342; overflow: hidden; }
+.shiftbar i { display: block; height: 100%; background: #4aa8ff; }
+.warn { color: #6cb8ff; font-weight: 900; letter-spacing: .04em; }
+
+/* Sahne */
+#stage { flex: 1; min-height: 0; position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #070b14; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Kontroller */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 4px 2px; }
+.joy {
+  --s: 132px;
+  width: var(--s); height: var(--s); border-radius: 50%; position: relative; flex: none; touch-action: none;
+  background: radial-gradient(circle, rgba(58,80,128,.25), rgba(17,26,44,.85) 70%);
+  border: 2px solid var(--line2);
+}
+.joy::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 1px dashed rgba(147,162,192,.25); }
+.joy .tick { position: absolute; color: var(--muted); font-size: 10px; }
+.knob {
+  position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #7f8aa3, #4a5470 70%); border: 2px solid #9aa6c2;
+  box-shadow: 0 3px 8px rgba(0,0,0,.5); pointer-events: none;
+}
+.acts {
+  display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 6px;
+  grid-template-areas: "potion jump shield" "spin atk atk" ". atk atk";
+}
+.sk {
+  --cd: 0;
+  position: relative; border-radius: 50%; border: 2px solid var(--line2); touch-action: none; padding: 0;
+  background: conic-gradient(rgba(5,8,16,.75) calc(var(--cd) * 1turn), transparent 0), radial-gradient(circle at 40% 35%, #26355a, #141e35 75%);
+  display: grid; place-items: center;
+}
+.sk canvas { width: 30px; height: 30px; }
+.sk small { position: absolute; bottom: -2px; right: -4px; min-width: 18px; padding: 0 4px; border-radius: 9px; background: var(--gold); color: #1a1206; font-size: 11px; font-weight: 900; line-height: 18px; }
+.sk.locked { filter: grayscale(1) brightness(.6); }
+.sk:not(.locked) small.lock { display: none; }
+.sk.locked small { background: #3a4660; color: var(--fg); }
+#bPotion { grid-area: potion; } #bJump { grid-area: jump; } #bShield { grid-area: shield; } #bSpin { grid-area: spin; }
+#bAtk {
+  grid-area: atk; border-radius: 50%; border: 3px solid #d8e2f5; touch-action: none; padding: 0;
+  background: radial-gradient(circle at 40% 35%, #34446c, #182340 70%);
+  box-shadow: 0 4px 14px rgba(0,0,0,.5), inset 0 0 0 3px #22314f;
+  display: grid; place-items: center;
+}
+#bAtk canvas { width: 58px; height: 58px; }
+#bAtk:active, .sk:active { transform: scale(.95); }
+
+/* Katmanlar */
+#overlay {
+  position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  background: rgba(4, 7, 14, .84); backdrop-filter: blur(3px);
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  padding-block: max(14px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; touch-action: pan-y;
+}
+.card {
+  width: 100%; max-width: 440px; margin: auto;
+  background: linear-gradient(#131d32, #0d1526); border: 1px solid var(--line2); border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+  padding: 18px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.card h1, .card h2, .card h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+.logo {
+  font-size: 36px; line-height: 1.05; font-weight: 900; text-align: center;
+  background: linear-gradient(#fff3c4, var(--gold) 45%, #c07f1a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #3a2508);
+}
+.tagline { text-align: center; color: var(--fg); font-size: 15px; }
+.card h2 { font-size: 24px; color: var(--gold); }
+.card h3 { font-size: 16px; color: var(--gold); }
+.card p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 14px; font-weight: 600; }
+.feats { display: grid; gap: 10px; }
+.feat { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; }
+.feat canvas { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #8a6a24; background: #151d30; }
+.feat b { display: block; font-size: 14px; }
+.feat span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; line-height: 1.35; }
+.btn {
+  border-radius: 10px; padding: 12px 16px; border: 1px solid #f5d27a;
+  background: linear-gradient(#f2c25a, #b8862a); color: #1a1206; font-weight: 900; font-size: 17px;
+  box-shadow: 0 3px 0 #6e4c12;
+}
+.btn.ghost { background: #16213a; color: var(--fg); border-color: var(--line2); box-shadow: none; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > .btn { flex: 1; }
+.heroes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.hero { border: 1px solid var(--line2); border-radius: 10px; background: #0f1729; padding: 6px 2px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.hero canvas { width: 56px; height: 56px; }
+.hero b { font-size: 13px; }
+.hero span { font-size: 10px; color: var(--muted); font-weight: 600; line-height: 1.2; text-align: center; }
+.hero[aria-checked="true"] { border-color: var(--gold); background: #2a2414; box-shadow: 0 0 0 1px var(--gold) inset; }
+.hdetail { display: grid; grid-template-columns: 112px 1fr; gap: 12px; align-items: center; background: radial-gradient(circle at 20% 50%, #2f2716, transparent 60%); border-radius: 10px; }
+.hdetail canvas { width: 112px; height: 112px; }
+.hdetail h3 { font-size: 20px; }
+.hdetail .weap { color: var(--gold); margin-top: 4px; }
+.sbars { display: grid; gap: 6px; }
+.sbars > div { display: grid; grid-template-columns: 64px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; }
+.sbars b { text-align: right; font-variant-numeric: tabular-nums; }
+.sbar { height: 8px; border-radius: 4px; background: #142342; overflow: hidden; }
+.sbar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862a, var(--gold)); }
+.lineup { width: 100%; max-width: 336px; height: auto; align-self: center; margin-bottom: -6px; }
+.vol { display: grid; grid-template-columns: 72px 1fr 44px; gap: 10px 10px; align-items: center; font-size: 14px; }
+.vol input { width: 100%; accent-color: var(--gold); touch-action: none; height: 28px; }
+.vol b { text-align: right; font-variant-numeric: tabular-nums; }
+.rankmsg { color: var(--gold) !important; font-weight: 800 !important; text-align: center; }
+.scores { display: grid; gap: 6px; }
+.srow {
+  display: grid; grid-template-columns: 30px 36px minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  background: #0f1729; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px 6px 8px;
+}
+.srow.me { border-color: var(--gold); background: #2a2414; }
+.srank {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 13px; font-weight: 900; background: #1c2740; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.srank.r1 { background: linear-gradient(#ffe28a, #c8901f); color: #2a1a04; }
+.srank.r2 { background: linear-gradient(#eef2f8, #9aa4b4); color: #1a1f2a; }
+.srank.r3 { background: linear-gradient(#f0b07a, #9a5a28); color: #2a1406; }
+.srow canvas { width: 36px; height: 36px; border-radius: 8px; background: #16213a; }
+.sname { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sname b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sname span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.sfloor { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+.sscore { font-size: 17px; font-weight: 900; color: var(--gold); text-align: right; min-width: 48px; font-variant-numeric: tabular-nums; }
+.shead { display: grid; grid-template-columns: 30px 36px minmax(0, 1fr) auto auto; gap: 8px; padding: 0 10px 0 8px; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.shead span:nth-child(4), .shead span:nth-child(5) { text-align: right; }
+.shead span:nth-child(5) { min-width: 48px; }
+.empty { text-align: center; padding: 18px 8px; border: 1px dashed var(--line2); border-radius: 10px; }
+.btn.danger { background: #3a1418; border-color: #a83a3a; color: #ffb4b4; }
+.slogan { text-align: center; font-family: var(--display); color: var(--gold); font-size: 14px; }
+
+.charhead { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; }
+.charhead canvas { width: 96px; height: 96px; border-radius: 10px; border: 1px solid #6e5420; background: radial-gradient(circle at 50% 40%, #3a2d18, #151d30 75%); }
+.charhead .xpbig { height: 14px; border-radius: 4px; background: #142342; border: 1px solid var(--line2); position: relative; overflow: hidden; margin-top: 6px; }
+.charhead .xpbig i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ffd77a, #c8901f); }
+.charhead .xpbig em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 10px; text-shadow: 0 1px 0 #000; }
+.stats { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stats div { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 10px; font-size: 14px; }
+.stats div + div { border-top: 1px solid var(--line); }
+.stats canvas { width: 20px; height: 20px; }
+.stats b { font-variant-numeric: tabular-nums; }
+.skills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.skill { border: 1px solid var(--line2); border-radius: 10px; background: #0f1729; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12px; }
+.skill canvas { width: 40px; height: 40px; }
+.skill span { color: var(--muted); font-size: 11px; font-weight: 600; }
+.skill.locked canvas { filter: grayscale(1) brightness(.5); }
+
+.shophead { display: flex; justify-content: space-between; align-items: center; background: #0c1322; border: 1px solid #5a4520; border-radius: 10px; padding: 8px 12px; }
+.shophead h2 { font-size: 22px; }
+.shophead .goldchip { font-size: 20px; color: var(--gold); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tab { border: 1px solid var(--line2); border-radius: 8px; background: #121b30; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.tab canvas { width: 26px; height: 26px; }
+.tab[aria-selected="true"] { border-color: var(--gold); color: var(--fg); background: #2a2414; }
+.items { display: grid; gap: 8px; }
+.item { display: grid; grid-template-columns: 50px 1fr auto; gap: 10px; align-items: center; background: #0f1729; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.item canvas { width: 50px; height: 50px; border-radius: 8px; border: 1px solid #6e5420; background: radial-gradient(circle at 50% 40%, #2f2716, #10182b 75%); }
+.item .t { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item .t b { font-size: 14px; }
+.item .t span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.item .buycol { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.price { display: flex; align-items: center; gap: 4px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.price .coin { width: 14px; height: 14px; }
+.buy { padding: 6px 10px; border-radius: 6px; border: 1px solid #f5d27a; background: linear-gradient(#f2c25a, #b8862a); color: #1a1206; font-weight: 900; font-size: 12px; white-space: nowrap; }
+.buy:disabled { background: #1c2740; color: #6f7c99; border-color: var(--line); }
+.buy.own { background: #173323; color: var(--ok); border-color: #2b5a3c; }
+.kv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.kv div { background: #0c1322; border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 1px; font-size: 11px; color: var(--muted); }
+.kv b { font-size: 17px; color: var(--fg); font-variant-numeric: tabular-nums; }
+
+#toast {
+  position: fixed; left: 50%; top: max(96px, calc(env(safe-area-inset-top, 0px) + 96px)); transform: translateX(-50%);
+  z-index: 15; pointer-events: none; font-family: var(--display); font-weight: 900; font-size: 18px; color: var(--gold); white-space: nowrap;
+  background: rgba(8,12,22,.9); border: 1px solid #6e5420; padding: 6px 14px; border-radius: 8px;
+  opacity: 0; transition: opacity .25s;
+}
+#toast.show { opacity: 1; }
+@media (max-height: 680px) {
+  .joy { --s: 112px; }
+  .knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  .acts { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
+  #bAtk canvas { width: 48px; height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hpbar i, .xpbar i, #toast { transition: none; }
+}
+</style>
+
+<div id="app">
+  <header class="hud">
+    <div class="who">
+      <div class="portrait"><canvas id="portrait" class="px" width="48" height="48"></canvas></div>
+      <div class="bars">
+        <div class="hprow"><span>HP</span><div class="hpbar"><i id="hpFill"></i><em id="hpTxt">100/100</em></div></div>
+        <div class="lvrow"><span id="lvTxt">Lv. 1</span><div class="xpbar"><i id="xpFill"></i></div></div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="goldchip"><span class="coin"></span><b id="goldTxt">0</b></div>
+      <div class="score">Puan: <b id="scoreTxt">0</b></div>
+    </div>
+    <button class="iconbtn" id="btnPause" aria-label="Karakter ve mola">II</button>
+  </header>
+  <div class="floorbar">
+    <span><span class="theme" id="floorTxt">Kat 1</span> · <span id="monTxt">Canavar 0</span></span>
+    <span class="shiftbox"><span id="shiftTxt">Kayma 0.0 sn</span><span class="shiftbar"><i id="shiftFill"></i></span></span>
+  </div>
+  <main id="stage"><canvas id="cv"></canvas></main>
+  <footer class="controls">
+    <div class="joy" id="joy" aria-label="Hareket joystick'i"><div class="knob" id="knob"></div></div>
+    <div class="acts">
+      <button class="sk" id="bPotion" aria-label="Can iksiri iç"><canvas data-ico="potion" width="30" height="30"></canvas><small id="potCnt">0</small></button>
+      <button class="sk" id="bJump" aria-label="Zıplama"><canvas data-ico="jump" width="30" height="30"></canvas><small class="lock">Lv5</small></button>
+      <button class="sk" id="bShield" aria-label="Kalkan"><canvas data-ico="shield" width="30" height="30"></canvas><small class="lock">Lv10</small></button>
+      <button class="sk" id="bSpin" aria-label="Hızlı saldırı"><canvas data-ico="spin" width="30" height="30"></canvas></button>
+      <button id="bAtk" aria-label="Saldır"><canvas data-ico="bigsword" width="58" height="58"></canvas></button>
+    </div>
+  </footer>
+</div>
+<div id="toast"></div>
+<div id="overlay" hidden></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const lightCv = document.createElement('canvas'), lk = lightCv.getContext('2d');
+const cacheCv = document.createElement('canvas'), ck = cacheCv.getContext('2d');
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Yön bit maskesi: her karo hangi kenarlarının açık olduğunu tutar
+const N = 1, E = 2, S = 4, W = 8, ALL = [N, E, S, W];
+const DIRS = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };
+const OPP = { 1: 4, 2: 8, 4: 1, 8: 2 };
+const rnd = (a, b) => a + Math.random() * (b - a);
+const ri = (a, b) => Math.floor(rnd(a, b + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const dirOf = (dx, dy) => dy < 0 ? N : dx > 0 ? E : dy > 0 ? S : W;
+
+/* ---------- Piksel sanat ---------- */
+// Spritelar 24x24. Simetrik olanlar sol yarı (12 sütun) olarak yazılır ve aynalanır.
+const SZ = 24, HALF = 12;
+const mirror = rows => rows.map(r => {
+  if (r.length !== HALF) console.warn('sprite yarısı 12 değil:', r);
+  r = r.padEnd(HALF, '.').slice(0, HALF);
+  return r + [...r].reverse().join('');
+});
+function bake(rows, pal) {
+  rows = rows.slice();
+  while (rows.length < SZ) rows.unshift('');
+  const c = document.createElement('canvas'); c.width = c.height = SZ;
+  const k = c.getContext('2d');
+  rows.forEach((r, y) => {
+    for (let x = 0; x < SZ; x++) if (pal[r[x]]) { k.fillStyle = pal[r[x]]; k.fillRect(x, y, 1, 1); }
+  });
+  return c;
+}
+function sprite(rows, pal) {
+  const c = bake(rows, pal);
+  const flip = document.createElement('canvas'); flip.width = flip.height = SZ;
+  const fk = flip.getContext('2d'); fk.translate(SZ, 0); fk.scale(-1, 1); fk.drawImage(c, 0, 0);
+  const white = src => {
+    const o = document.createElement('canvas'); o.width = o.height = SZ;
+    const ok = o.getContext('2d'); ok.drawImage(src, 0, 0);
+    ok.globalCompositeOperation = 'source-atop'; ok.fillStyle = '#ffffff'; ok.fillRect(0, 0, SZ, SZ);
+    return o;
+  };
+  return { r: c, l: flip, wr: white(c), wl: white(flip) };
+}
+const K = '#160f22';
+const HERO_PAL = {
+  K, H: '#2a2340', h: '#51468a', j: '#16121f', S: '#f3cfa6', s: '#d6a077', E: '#1a1226', w: '#ffffff',
+  C: '#2f62b8', c: '#1e3f80', q: '#5f97ec', T: '#4a4560', t: '#332f48', B: '#8a5a2c', G: '#f5c04a',
+  P: '#2d2840', O: '#6a4426', M: '#b4bfd0',
+};
+const HERO_FRONT = mirror([
+  '............', '........KKKK', '......KKHHHh', '.....KHHHhhH', '....KHHhhHHH', '....KHHHHHHH',
+  '....KHjHHHjj', '....KHSjSSSS', '....KHSSwESS', '....KjSSwESS', '.....KSSSSSS', '.....KsSSSSs',
+  '......KKsSSS', '.....KqCKKss', '....KqCCCKTT', '...KqCCCKTTT', '...KCCCKMTTT', '...KCCKSKBBG',
+  '...KCCcKtTTT', '...KCccKKtTT',
+]);
+const HERO_BACK = mirror([
+  '............', '........KKKK', '......KKHHHh', '.....KHHHhhH', '....KHHhhHHH', '....KHHHHHHH',
+  '....KHHHjHHH', '....KHjHHHjH', '....KHHHjHHH', '....KjHHHHjH', '.....KjHHHHH', '.....KKjjHHH',
+  '......KKjjjj', '.....KqCKKCC', '....KqCCCCCC', '...KqCCCCCCC', '...KCCCCcCCC', '...KCKSKCcCC',
+  '...KCCcCCCcC', '...KCccCCcCC',
+]);
+const LEGS = [
+  ['....KKK.KPPPPPPK.KKK....', '........KPPKKPPK........', '........KOOKKOOK........', '........KKKKKKKK........'],
+  ['....KKK.KPPPPPPK.KKK....', '........KPPKKPPK........', '........KOOKKPPK........', '........KKKKKOOK........'],
+  ['....KKK.KPPPPPPK.KKK....', '........KPPKKPPK........', '........KPPKKOOK........', '........KOOKKKKK........'],
+];
+// Seçilebilir kahramanlar: gövde şablonu ortak, baş ve renkler sınıfa özgü
+const BODY_BACK = HERO_BACK.slice(13);
+const heroSet = (front, back, pal) => ({
+  front: LEGS.map(l => sprite([...front, ...l], pal)),
+  back: LEGS.map(l => sprite([...back, ...l], pal)),
+});
+const HEROES = {
+  knight: heroSet(HERO_FRONT, HERO_BACK, HERO_PAL),
+  barbarian: heroSet(mirror([
+    '......K.....', '.....KhK.KKK', '....KHhHKHHh', '...KHHHhhHhH', '...KHHhhHHHH', '....KHHHHHHH',
+    '....KHjHHHjj', '....KHSjSSSS', '....KHSSwESS', '....KjSSwESS', '.....KHSSSSS', '.....KHHHSKK',
+    '......KHHHHH', '.....KqCKHHH', '....KqCCCKTT', '...KSqCCKTTT', '...KSSSKMTTT', '...KSSKSKBBG',
+    '...KSsKKtTTT', '...KKKKKKtTT',
+  ]), mirror([
+    '......K.....', '.....KhK.KKK', '....KHhHKHHh', '...KHHHhhHhH', '...KHHhhHHHH', '....KHHHHHHH',
+    '....KHHHjHHH', '....KHjHHHjH', '....KHHHjHHH', '....KjHHHHjH', '.....KjHHHHH', '.....KKjjHHH',
+    '......KKjjjj', '.....KqCKKCC', '....KqCCCCCC', '...KSqCCCCCC', '...KSSCCcCCC', '...KSKSKCcCC',
+    '...KSsCCCCcC', '...KKKKCCcCC',
+  ]), { ...HERO_PAL, H: '#c0502a', h: '#ee8a44', j: '#7e2c14', C: '#7a5a3a', c: '#5a3e24', q: '#a8865a',
+        T: '#d29a70', t: '#a8744e', P: '#4a3a2a', O: '#5a3a22' }),
+  thief: heroSet(mirror([
+    '...........K', '..........Kh', '........KKhH', '......KKHHHH', '.....KHHhHHH', '....KHHhHHHH',
+    '....KHHjjjjj', '....KHjSSSSS', '....KHjSwESS', '....KHjSwESS', '....KHHjjjjj', '.....KHjjjjj',
+    '......KKjjjj', '.....KqCKKjj', '....KqCCCKTT', '...KqCCCKTTT', '...KCCCKMTTT', '...KCCKSKBBG',
+    '...KCCcKtTTT', '...KCccKKtTT',
+  ]), [...mirror([
+    '...........K', '..........Kh', '........KKhH', '......KKHHHH', '.....KHHhHHH', '....KHHhHHHH',
+    '....KHHHhHHH', '....KHHHHhHH', '....KHjHHHhH', '....KHHjHHHH', '....KHHHjHHH', '.....KHHHjHH',
+    '......KKHHHH',
+  ]), ...BODY_BACK], { ...HERO_PAL, H: '#2f5a3a', h: '#4f845a', j: '#1b3424', C: '#2f5a3a', c: '#1b3424', q: '#5f9468',
+        T: '#4a3a2a', t: '#33281c', B: '#3d2716', G: '#c9d2dc', P: '#2a2a30', O: '#3a2a1e', M: '#6a5a4a' }),
+  mage: heroSet(mirror([
+    '...........K', '..........Kh', '.........KhH', '........KhHH', '.......KHHHH', '......KHHHHH',
+    '..KKKKKyyyyy', '.Kjjjjjjjjjj', '....KRSSSSSS', '....KRSSwESS', '....KRSSwESS', '.....KSSSSSs',
+    '......KKsSSS', '.....KqCKKss', '....KqCCCKTT', '...KqCCCKTTT', '...KCCCKTTTT', '...KCCKSKBBG',
+    '...KCCcKTTTT', '...KCccKTTTT',
+  ]), [...mirror([
+    '...........K', '..........Kh', '.........KhH', '........KhHH', '.......KHHHH', '......KHHHHH',
+    '..KKKKKyyyyy', '.Kjjjjjjjjjj', '....KRRRRRRR', '....KRRRrRRR', '....KRrRRRrR', '.....KRRRRRR',
+    '......KKRRRR',
+  ]), ...BODY_BACK], { ...HERO_PAL, H: '#5a3a9a', h: '#8a68d8', j: '#33205e', y: '#f5c04a', R: '#ece6f8', r: '#b8b0cc',
+        C: '#4a3488', c: '#2e1f5e', q: '#7a5ac8', T: '#3a2a70', t: '#2a1d52', B: '#f5c04a', G: '#5fd0ff',
+        P: '#4a3488', O: '#2a1d52' }),
+};
+const HERO = HEROES.knight;
+const SPR = {
+  goblin: sprite(mirror([
+    '............', '............', '............', '............', '.KK......KKK', '.KgK...KKggg',
+    '..KgKKKggggg', '..KlgKgggggg', '...KggggKKgg', '....KgKYEKgg', '....KggKKggg', '....KGgggggg',
+    '.....KGgKWKW', '.....KGGKKKK', '......KKGGGG', '....KgKKnnnn', '...KgGKnNnnn', '...KgGKnNnnn',
+    '...KlgKbbbbb', '....KKKnNnnn', '......KnnnKK', '.....KggK...', '.....KGGK...', '.....KKKK...',
+  ]), { K, g: '#6cc04a', G: '#4a8f34', l: '#a6e47a', Y: '#ffe14a', E: '#1a1226', W: '#f4f0e0', n: '#7a4f2a', N: '#57361b', b: '#3d2716' }),
+  skeleton: sprite(mirror([
+    '............', '............', '.......KKKKK', '.....KKwwwww', '....Kwwwwwww', '...Kwwwwwwww',
+    '...KwwKKKwww', '...KwKKRKwww', '...KswKKKwwK', '....KsswwwwK', '.....KswKwKw', '......KKKKKK',
+    '..........Kw', '.....KKKKKKw', '....KwwKwwKw', '...KwK.KswKw', '...Kw..KwwKw', '...Kw..KswKw',
+    '...KwK..KKKw', '........KwwK', '........KwK.', '........KwK.', '.......KwwK.', '.......KKKK.',
+  ]), { K, w: '#efeadb', s: '#b9b19c', R: '#ff5a3a' }),
+  bat: sprite(mirror([
+    '............', '............', '............', '............', '............', '............',
+    'K...........', 'KK..........', 'KpK.....KK..', 'KppK....KpK.', 'KpppKK.Kpppp', 'KPpppKKpppRp',
+    'KPPpppKppppp', '.KPPpppKpWpp', '..KPK.KPKppp', '.........KKK', '............', '............',
+  ]), { K, p: '#8a5ad0', P: '#5a3494', R: '#ff4a5a', W: '#f4f0e0' }),
+  spider: sprite(mirror([
+    '........KKKK', '......KKVVVV', '..KK.KVuuVVV', '.K..KKVuVVVv', 'K..K.KVVVVvv', 'K.K..KKVVvvv',
+    '.K.KKKKKKKKK', 'K..K.Kvvvvvv', 'K.K..KvRvvRv', '.K..KKvvvvvv', '.K.K.KKvvvKW', 'K..K..KKKKKK',
+    'K...K.......', '.....K......',
+  ]), { K, v: '#5a2d8a', V: '#9a5ad8', u: '#c79af0', R: '#ff3a4a', W: '#f4f0e0' }),
+  golem: sprite(mirror([
+    '........KKKK', '......KKrrrr', '.....KrrrrrR', '.....KrRRrrr', '.....KrKYYKr', '.....KRrrrrr',
+    '..KKKKKRRDDD', '.KrrrKrrrrrr', 'KrrrrKrmmrrr', 'KrRrrKrrmrRr', 'KrRRrKRrrrRr', 'KrrrrKRRrrrr',
+    'KRrrKKDRRRRR', 'KrrrrK.KrrrK', 'KRRRRK.KrRRK', '.KKKK.KrrK..', '......KRRK..', '.....KKKKK..',
+  ]), { K, r: '#9a9aa8', R: '#6a6a7a', D: '#4a4a58', m: '#6fae4a', Y: '#ffb02a' }),
+  boss: sprite(mirror([
+    'h...........', 'hh..........', '.hH.........', '.hhH...KKKKK', '..hhHKKooooo', '...KhKoooooo',
+    '...KoooOoooo', '...KooRKoooo', '....KooooKKK', '....KoOOKnnn', '....KoOKnnKn', '.....KOKnnnG',
+    '..KKKKKOOKGK', '.KoolKKoooKK', 'KooolKoooooo', 'KoolKKlooooo', 'KooK.KoOOOoo', 'KnnK.KOOOOOO',
+    '.KK..KbbbbGb', '.....KOOOOOO', '......KooK..', '......KOOK..', '.....KhhhK..', '.....KKKKK..',
+  ]), { K, o: '#9a5230', O: '#62321c', l: '#c07040', h: '#efe3c8', H: '#b8a98a', R: '#ff3a3a', G: '#f5c04a', n: '#d08070', b: '#3d2716' }),
+  chest: sprite(mirror([
+    '...KKKKKKKKK', '..Knlnnnnnnn', '..KnNnnnnnnn', '..KGGGGGGGGG', '..KnNnnnnKKK', '..KnNnnnnKGG',
+    '..KnNnnnnKGK', '..KnNnnnnnKK', '..KnNnnnnnnn', '..KGGGGGGGGG', '..KKKKKKKKKK',
+  ]), { K, n: '#9a6230', N: '#6e4220', l: '#c08850', G: '#f5c04a' }),
+};
+
+/* ---------- Veri ---------- */
+const MTYPES = {
+  goblin:   { name: 'Yeşil Goblin', hp: 30,  atk: 8,  move: 430, aggro: 6,  xp: 10,  gold: 5,   score: 5,   size: .95 },
+  skeleton: { name: 'İskelet',      hp: 50,  atk: 12, move: 600, aggro: 7,  xp: 18,  gold: 10,  score: 10,  size: 1.0 },
+  bat:      { name: 'Yarasa',       hp: 24,  atk: 7,  move: 280, aggro: 9,  xp: 15,  gold: 15,  score: 15,  size: .95, erratic: .45 },
+  spider:   { name: 'Dev Örümcek',  hp: 70,  atk: 18, move: 640, aggro: 6,  xp: 30,  gold: 25,  score: 25,  size: 1.05 },
+  golem:    { name: 'Taş Golem',    hp: 160, atk: 26, move: 950, aggro: 5,  xp: 60,  gold: 50,  score: 50,  size: 1.1 },
+  boss:     { name: 'Minotor',      hp: 420, atk: 30, move: 560, aggro: 99, xp: 200, gold: 150, score: 300, size: 1.45 },
+};
+const THEMES = [
+  { name: 'Kolay Labirent',    from: 1,  floorA: '#2a332c', floorB: '#2e3830', grout: '#1a201b', front: '#2c3628', top: '#55684a', hi: '#71885f', line: '#425239', moss: '#6fae4a' },
+  { name: 'Orta Labirent',     from: 11, floorA: '#222b3d', floorB: '#263044', grout: '#151b29', front: '#252e45', top: '#4b5a7e', hi: '#64769f', line: '#3a4766', moss: '#4aa8ff' },
+  { name: 'Zor Labirent',      from: 21, floorA: '#30201e', floorB: '#362422', grout: '#1c1312', front: '#3a201b', top: '#70413a', hi: '#8e544a', line: '#56322c', moss: '#ff6a2a' },
+  { name: 'Efsanevi Labirent', from: 31, floorA: '#271e38', floorB: '#2c2240', grout: '#171123', front: '#30254a', top: '#5f4b8a', hi: '#7b63ae', line: '#4a3a6c', moss: '#c77dff' },
+];
+const themeFor = f => THEMES.filter(t => f >= t.from).pop();
+
+const WEAPONS = [
+  { name: 'Tahta Kılıç',         atk: 0,  cost: 0,    color: '#b08350' },
+  { name: 'Demir Kılıç',         atk: 10, cost: 150,  color: '#c9d2dc' },
+  { name: 'Çelik Kılıç',         atk: 22, cost: 420,  color: '#eef4fa' },
+  { name: 'Ejder Kılıcı',        atk: 38, cost: 950,  color: '#ff7a4a' },
+  { name: 'Kayıp Hazine Kılıcı', atk: 60, cost: 2000, color: '#f5c04a' },
+];
+const ARMORS = [
+  { name: 'Bez Gömlek',      def: 0,  cost: 0,    color: '#6e7686' },
+  { name: 'Deri Zırh',       def: 8,  cost: 90,   color: '#9a6a3c' },
+  { name: 'Gümüş Zırh',      def: 20, cost: 200,  color: '#cfd6de' },
+  { name: 'Ejder Pulu Zırh', def: 35, cost: 650,  color: '#e0603a' },
+  { name: 'Efsane Zırh',     def: 55, cost: 1500, color: '#b98cff' },
+];
+const ACCS = [
+  { id: 'ring',  name: 'Yüzük',        desc: '+5 Kritik Şansı',            cost: 120 },
+  { id: 'boots', name: 'Hız Çizmesi',  desc: '+25 Hareket Hızı',           cost: 140 },
+  { id: 'neck',  name: 'Can Kolyesi',  desc: '+30 azami HP',               cost: 160 },
+  { id: 'charm', name: 'Altın Tılsım', desc: 'Toplanan altın +%25',        cost: 220 },
+  { id: 'fang',  name: 'Vampir Dişi',  desc: 'Verdiğin hasarın %6\'sı HP', cost: 380 },
+];
+const POTION = { name: 'Can İksiri', heal: 50, cost: 80, max: 5 };
+const SKILLS = [
+  { id: 'spin',   name: 'Hızlı Saldırı', lvl: 1,  cd: 4000,  desc: 'Çevrendeki 4 kareye birden vurur' },
+  { id: 'jump',   name: 'Zıplama',       lvl: 5,  cd: 6000,  desc: 'Önündeki duvarın üstünden atlar' },
+  { id: 'shield', name: 'Kalkan',        lvl: 10, cd: 18000, desc: '4 saniye hasar almazsın' },
+];
+
+const CLASSES = {
+  knight:    { name: 'Şövalye', role: 'Dengeli savaşçı', hp: 100, atk: 10, def: 4, crit: 5,  speed: 100, weapon: 'sword',
+               perk: 'Hızlı Saldırı iki kat sık dolar.' },
+  barbarian: { name: 'Barbar',  role: 'Güçlü ama yavaş', hp: 140, atk: 14, def: 0, crit: 5,  speed: 86,  weapon: 'axe',
+               perk: "Öfke: canı %30'un altına düşünce hasarı 1,5 katına çıkar." },
+  thief:     { name: 'Hırsız',  role: 'Hızlı ve sinsi',  hp: 80,  atk: 8,  def: 0, crit: 15, speed: 125, weapon: 'dagger',
+               perk: 'Kritik vuruşları 2,5 kat vurur, %20 fazla altın toplar.' },
+  mage:      { name: 'Büyücü',  role: 'Uzaktan büyü',    hp: 75,  atk: 11, def: 0, crit: 5,  speed: 100, weapon: 'staff',
+               perk: 'Saldırı düğmesi 2 kare uzaktaki canavara büyü fırlatır.' },
+};
+const WEAPON_NAMES = {
+  sword:  ['Tahta Kılıç', 'Demir Kılıç', 'Çelik Kılıç', 'Ejder Kılıcı', 'Kayıp Hazine Kılıcı'],
+  axe:    ['Odun Baltası', 'Demir Balta', 'Çelik Balta', 'Ejder Baltası', 'Kayıp Hazine Baltası'],
+  dagger: ['Tahta Hançer', 'Demir Hançer', 'Çelik Hançer', 'Ejder Dişi Hançer', 'Kayıp Hazine Hançeri'],
+  staff:  ['Meşe Asa', 'Kristal Asa', 'Yıldız Asası', 'Ejder Asası', 'Kayıp Hazine Asası'],
+};
+const STAFF_ORBS = ['#9ad0ff', '#5fd0ff', '#ffe14a', '#ff7a4a', '#f5c04a'];
+const cls = () => CLASSES[G.hero] || CLASSES.knight;
+const weaponName = i => WEAPON_NAMES[cls().weapon][i];
+const weaponColor = () => cls().weapon === 'staff' ? STAFF_ORBS[G.weapon] : WEAPONS[G.weapon].color;
+const maxHp = () => cls().hp + (G.lvl - 1) * 10 + (G.acc.neck ? 30 : 0);
+const raging = () => G.hero === 'barbarian' && G.hp < maxHp() * .3;
+const atkPow = () => Math.round((cls().atk + (G.lvl - 1) * 2 + WEAPONS[G.weapon].atk) * (raging() ? 1.5 : 1));
+const defPow = () => ARMORS[G.armor].def + (G.lvl - 1) + cls().def;
+const critPct = () => cls().crit + (G.acc.ring ? 5 : 0);
+const speedStat = () => cls().speed + (G.acc.boots ? 25 : 0) + (G.lvl - 1) * 2;
+const goldMul = () => (G.acc.charm ? 1.25 : 1) * (G.hero === 'thief' ? 1.2 : 1);
+const skillCd = id => id === 'spin' && G.hero === 'knight' ? 2000 : SKILLS.find(s => s.id === id).cd;
+const moveMs = () => Math.round(17000 / speedStat());
+const xpNeed = l => 30 * l + 6 * l * l;
+// Kayma süresi her seferinde rastgele: ortalaması katla kısalır, en az 3 sn (uyarı 1,7 sn sürer)
+const shiftInterval = () => { const base = Math.max(5000, 11000 - (G.floor - 1) * 400); return Math.round(Math.max(3000, rnd(base * .4, base * 1.5))); };
+
+let G = null, best = 0;
+let bestName = '';
+try { best = +localStorage.getItem('kayip_best') || 0; bestName = localStorage.getItem('kayip_best_name') || ''; } catch (e) {}
+// Rekor tablosu: biten oyunların en iyi 10'u bu cihazda saklanır
+const SCORE_KEY = 'kayip_scores', TOP_N = 10;
+function loadScores() {
+  try {
+    const a = JSON.parse(localStorage.getItem(SCORE_KEY));
+    if (Array.isArray(a)) return a.filter(e => e && typeof e.score === 'number').slice(0, TOP_N);
+  } catch (e) {}
+  return [];
+}
+function saveScores(a) { try { localStorage.setItem(SCORE_KEY, JSON.stringify(a)); } catch (e) {} }
+// Tablodan önceki sürümün tek rekoru varsa onu ilk satır yap
+if (!loadScores().length && best > 0) saveScores([{ name: bestName || 'Kahraman', hero: 'knight', floor: null, lvl: null, kills: null, score: best, t: 0 }]);
+function addScore(entry) {
+  const a = [...loadScores(), entry];
+  a.sort((x, y) => y.score - x.score || (y.floor || 0) - (x.floor || 0) || x.t - y.t);
+  const top = a.slice(0, TOP_N);
+  saveScores(top);
+  return top.indexOf(entry);
+}
+function syncBest() {
+  const top = loadScores()[0];
+  best = top ? top.score : 0; bestName = top ? top.name : '';
+}
+syncBest();
+// Oyuncunun verdiği isim: sayfaya HTML olarak basılmadan önce kaçırılır
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const cleanName = t => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 14);
+const NAMES = ['Deniz', 'Ege', 'Ada', 'Toprak', 'Rüzgar', 'Yağmur', 'Ateş', 'Nehir', 'Umut', 'Bulut', 'Ilgaz', 'Kuzey', 'Derin', 'Evren', 'Güneş', 'Çağan'];
+const heroName = () => cleanName(G && G.name) || cls().name;
+const input = { held: 0, queued: 0, keys: [] };
+
+/* ---------- Kayıt ---------- */
+const RUN_KEYS = ['hero', 'name', 'floor', 'gold', 'score', 'kills', 'lvl', 'xp', 'hp', 'weapon', 'armor', 'acc', 'potions'];
+const runData = () => { const o = {}; RUN_KEYS.forEach(k => o[k] = G[k]); return o; };
+function saveRun() { try { localStorage.setItem('kayip_run', JSON.stringify(runData())); } catch (e) {} }
+function loadRun() { try { const r = JSON.parse(localStorage.getItem('kayip_run')); return r && r.floor ? r : null; } catch (e) { return null; } }
+function clearRun() { try { localStorage.removeItem('kayip_run'); } catch (e) {} }
+
+/* ---------- Labirent ---------- */
+function genMaze(w, h) {
+  const t = [...Array(h)].map(() => Array(w).fill(0));
+  const seen = [...Array(h)].map(() => Array(w).fill(false));
+  const st = [[ri(0, w - 1), ri(0, h - 1)]];
+  seen[st[0][1]][st[0][0]] = true;
+  while (st.length) {
+    const [x, y] = st[st.length - 1];
+    const opts = ALL.filter(d => {
+      const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+      return nx >= 0 && ny >= 0 && nx < w && ny < h && !seen[ny][nx];
+    });
+    if (!opts.length) { st.pop(); continue; }
+    const d = pick(opts), nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+    t[y][x] |= d; t[ny][nx] |= OPP[d]; seen[ny][nx] = true; st.push([nx, ny]);
+  }
+  // Döngüler ekle: kayma sonrası çıkmazlar daha az olsun
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (Math.random() < .3) {
+      const d = pick(ALL), nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+      if (nx >= 0 && ny >= 0 && nx < w && ny < h) { t[y][x] |= d; t[ny][nx] |= OPP[d]; }
+    }
+  }
+  return t;
+}
+const inside = (x, y) => x >= 0 && y >= 0 && x < G.w && y < G.h;
+function canPass(x, y, d) {
+  const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+  if (!inside(nx, ny)) return false;
+  return !!(G.tiles[y][x] & d) && !!(G.tiles[ny][nx] & OPP[d]);
+}
+function openWall(x, y, d) {
+  G.tiles[y][x] |= d;
+  G.tiles[y + DIRS[d][1]][x + DIRS[d][0]] |= OPP[d];
+  G.dirty = true;
+}
+function bfs(sx, sy) {
+  const dist = [...Array(G.h)].map(() => Array(G.w).fill(-1));
+  dist[sy][sx] = 0;
+  const q = [[sx, sy]];
+  for (let i = 0; i < q.length; i++) {
+    const [x, y] = q[i];
+    for (const d of ALL) if (canPass(x, y, d)) {
+      const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+      if (dist[ny][nx] < 0) { dist[ny][nx] = dist[y][x] + 1; q.push([nx, ny]); }
+    }
+  }
+  return dist;
+}
+// Kayma oyuncuyu kapatırsa yeterince alan açılana kadar duvar yıkar
+function ensureReach(frac) {
+  const need = Math.ceil(G.w * G.h * frac);
+  for (let guard = 0; guard < 300; guard++) {
+    const dist = bfs(G.p.x, G.p.y);
+    let cnt = 0; const front = [];
+    for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) if (dist[y][x] >= 0) {
+      cnt++;
+      for (const d of ALL) {
+        const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+        if (inside(nx, ny) && dist[ny][nx] < 0) front.push([x, y, d]);
+      }
+    }
+    const goal = G.portal || G.chest;
+    const goalOk = !goal || dist[goal.y][goal.x] >= 0;
+    if (cnt >= need && goalOk) return;
+    if (!front.length) return;
+    let f;
+    if (cnt >= need && !goalOk) {
+      const md = ([x, y, d]) => Math.abs(x + DIRS[d][0] - goal.x) + Math.abs(y + DIRS[d][1] - goal.y);
+      f = front.reduce((a, b) => md(a) <= md(b) ? a : b);
+    } else f = pick(front);
+    openWall(...f);
+    const [fx, fy, fd] = f;
+    dust(fx + .5 + DIRS[fd][0] * .5, fy + .5 + DIRS[fd][1] * .5, themeFor(G.floor).hi, 8);
+  }
+}
+
+/* ---------- Oyun akışı ---------- */
+function freshRun(hero) {
+  hero = CLASSES[hero] ? hero : 'knight';
+  return { hero, floor: 1, gold: 0, score: 0, kills: 0, lvl: 1, xp: 0, hp: CLASSES[hero].hp, weapon: 0, armor: 0, acc: {}, potions: 1 };
+}
+function newRun(data) {
+  G = Object.assign(freshRun(data && data.hero), data || {});
+  if (!CLASSES[G.hero]) G.hero = 'knight';
+  G.acc = Object.assign({}, G.acc);
+  startLevel();
+}
+function startLevel(preview) {
+  const F = G.floor, w = Math.min(13, 8 + Math.floor((F - 1) / 3));
+  // Satır sayısı oyun alanının en-boy oranına göre: telefonda dikey labirent
+  const h = Math.max(w, Math.min(Math.round(w * 2), Math.floor(w * VH / Math.max(1, VW))));
+  G.w = w; G.h = h; G.tiles = genMaze(w, h);
+  G.seeds = [...Array(h)].map(() => [...Array(w)].map(() => Math.random()));
+  const px = ri(0, w - 1), py = ri(0, h - 1);
+  G.p = { x: px, y: py, fx: px, fy: py, t: 1, dur: 170, face: S, side: 1, atkCd: 0, lunge: 0, slash: 0, hurt: 0, cd: { spin: 0, jump: 0, shield: 0, potion: 0 }, spinFx: 0, shield: 0, jumping: false };
+  G.monsters = []; G.coins = []; G.bolts = []; G.portal = null; G.chest = null; G.floaters = []; G.parts = []; G.shake = 0; G.dirty = true;
+  const pool = ['goblin', 'goblin', 'goblin'];
+  if (F >= 2) pool.push('skeleton', 'skeleton');
+  if (F >= 3) pool.push('bat');
+  if (F >= 5) pool.push('spider', 'spider');
+  if (F >= 8) pool.push('golem');
+  const count = Math.min(Math.floor((3 + F * 1.3) * w * h / 100 + 1), Math.floor(w * h / 6));
+  const freeCell = minD => {
+    for (let k = 0; k < 500; k++) {
+      const x = ri(0, w - 1), y = ri(0, h - 1);
+      if (Math.abs(x - px) + Math.abs(y - py) >= minD && !occupied(x, y)) return [x, y];
+    }
+    return null;
+  };
+  if (F % 5 === 0) { const c = freeCell(6); if (c) G.monsters.push(makeMonster('boss', ...c)); }
+  while (G.monsters.length < count + (F % 5 === 0 ? 1 : 0)) {
+    const type = pick(pool), c = freeCell(4);
+    if (!c) break;
+    G.monsters.push(makeMonster(type, ...c));
+    // Yarasalar sürü halinde gelir
+    if (type === 'bat') for (const d of ALL) {
+      const bx = c[0] + DIRS[d][0], by = c[1] + DIRS[d][1];
+      if (inside(bx, by) && !occupied(bx, by) && Math.random() < .5) G.monsters.push(makeMonster('bat', bx, by));
+    }
+  }
+  for (let i = 0; i < Math.floor(w * h / 10); i++) {
+    const c = freeCell(1);
+    if (c && !G.coins.some(k => k.x === c[0] && k.y === c[1])) G.coins.push({ x: c[0], y: c[1], v: ri(2, 4) });
+  }
+  // Kayıp hazine: oyuncuya en uzak köşede bir sandık
+  const dist = bfs(px, py);
+  let cx = 0, cy = 0, cd = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (dist[y][x] > cd && !occupied(x, y)) { cd = dist[y][x]; cx = x; cy = y; }
+  G.chest = { x: cx, y: cy };
+  G.coins = G.coins.filter(k => !(k.x === cx && k.y === cy));
+  const firstShift = shiftInterval();
+  G.shift = { timer: firstShift, total: firstShift, warn: null, anim: null };
+  G.state = 'play'; G.grace = 1500;
+  G.hp = Math.min(G.hp, maxHp());
+  if (!preview) saveRun();
+  if (preview) return;
+  setMusic(musicFor(F));
+  paintIcon($('portrait'), 'face');
+  paintIcon(document.querySelector('#bAtk canvas'), cls().weapon === 'sword' ? 'bigsword' : cls().weapon, cls().weapon === 'staff' ? '#5fd0ff' : undefined);
+  hideOverlay();
+  toast(F === 1 ? `Bol şans, ${heroName()}!` : F % 5 === 0 ? `Kat ${F} · Minotor burada!` : `Kat ${F} · ${themeFor(F).name}`);
+}
+function makeMonster(type, x, y) {
+  const b = MTYPES[type], F = G.floor, hp = Math.round(b.hp * (1 + .18 * (F - 1)));
+  return {
+    type, x, y, fx: x, fy: y, t: 1, dur: Math.min(260, b.move * .6), hp, maxHp: hp,
+    atk: Math.round(b.atk * (1 + .12 * (F - 1))), move: b.move, aggro: b.aggro, erratic: b.erratic || 0,
+    gold: Math.round(b.gold * (1 + .1 * (F - 1))), xp: Math.round(b.xp * (1 + .1 * (F - 1))), score: b.score,
+    timer: rnd(400, b.move + 800), atkCd: 800, hurt: 0, lunge: 0, face: S, seed: Math.random() * 10,
+  };
+}
+const monsterAt = (x, y) => G.monsters.find(m => m.x === x && m.y === y);
+const occupied = (x, y) => (G.p.x === x && G.p.y === y) || !!monsterAt(x, y);
+const skillOpen = id => G.lvl >= SKILLS.find(s => s.id === id).lvl;
+
+function face(d) { G.p.face = d; if (d === E) G.p.side = 1; else if (d === W) G.p.side = -1; }
+function tryMove(d) {
+  const p = G.p; face(d);
+  if (!canPass(p.x, p.y, d)) return true;
+  const nx = p.x + DIRS[d][0], ny = p.y + DIRS[d][1];
+  const m = monsterAt(nx, ny);
+  if (m) { if (p.atkCd > 0) return false; swing(m); return true; }
+  p.fx = p.x; p.fy = p.y; p.x = nx; p.y = ny; p.t = 0; p.dur = moveMs(); p.jumping = false;
+  sfx('step');
+  return true;
+}
+function swing(target) {
+  const p = G.p;
+  p.atkCd = 300; p.lunge = 1; p.slash = 1; sfx('swing');
+  if (target) hitMonster(target, atkPow());
+}
+function attack() {
+  if (!G || G.state !== 'play' || G.shift.anim) return;
+  const p = G.p;
+  if (p.atkCd > 0 || p.t < 1) return;
+  const d = p.face, m = canPass(p.x, p.y, d) ? monsterAt(p.x + DIRS[d][0], p.y + DIRS[d][1]) : null;
+  if (G.hero === 'mage') castBolt(d, m); else swing(m);
+}
+// Büyücü: büyü 2 kareye kadar ilerler, duvarda ya da ilk canavarda durur
+function castBolt(d, near) {
+  const p = G.p;
+  p.atkCd = 380; p.lunge = .6; p.slash = .8; sfx('bolt');
+  let x = p.x, y = p.y, target = near;
+  if (near) { x = near.x; y = near.y; }
+  else for (let i = 0; i < 2; i++) {
+    if (!canPass(x, y, d)) break;
+    x += DIRS[d][0]; y += DIRS[d][1];
+    const m = monsterAt(x, y);
+    if (m) { target = m; break; }
+  }
+  const ex = x === p.x && y === p.y ? p.x + .5 + DIRS[d][0] * .45 : x + .5, ey = x === p.x && y === p.y ? p.y + .3 + DIRS[d][1] * .45 : y + .3;
+  G.bolts.push({ x0: p.x + .5, y0: p.y + .3, x1: ex, y1: ey, t: 0, target });
+}
+function useSkill(id) {
+  if (!G || G.state !== 'play' || G.shift.anim) return;
+  const p = G.p;
+  if (!skillOpen(id)) { toast(`${SKILLS.find(s => s.id === id).name} Lv${SKILLS.find(s => s.id === id).lvl}'de açılır`); return; }
+  if (p.cd[id] > 0) return;
+  if (id === 'spin') {
+    p.spinFx = 1; sfx('spin');
+    ALL.map(d => monsterAt(p.x + DIRS[d][0], p.y + DIRS[d][1])).filter(Boolean)
+      .forEach(m => hitMonster(m, Math.round(atkPow() * 1.5)));
+  } else if (id === 'jump') {
+    if (p.t < 1) return;
+    const nx = p.x + DIRS[p.face][0], ny = p.y + DIRS[p.face][1];
+    if (!inside(nx, ny) || occupied(nx, ny)) { toast('Atlanacak yer yok'); return; }
+    p.fx = p.x; p.fy = p.y; p.x = nx; p.y = ny; p.t = 0; p.dur = 340; p.jumping = true;
+    sfx('jump');
+  } else if (id === 'shield') {
+    p.shield = 4000; sfx('shield');
+  }
+  p.cd[id] = skillCd(id);
+}
+function drinkPotion() {
+  if (!G || G.state !== 'play') return;
+  const p = G.p;
+  if (G.potions <= 0) { toast('İksirin kalmadı'); return; }
+  if (G.hp >= maxHp() || p.cd.potion > 0) return;
+  G.potions--; p.cd.potion = 800;
+  const h = Math.min(POTION.heal, maxHp() - G.hp);
+  G.hp += h;
+  floater('+' + h + ' HP', p.x + .5, p.y + .1, '#5fcf7a');
+  dust(p.x + .5, p.y + .5, '#e0413f', 10); sfx('potion');
+}
+function hitMonster(m, dmg) {
+  const crit = Math.random() * 100 < critPct();
+  if (crit) dmg *= G.hero === 'thief' ? 2.5 : 2;
+  dmg = Math.round(dmg * rnd(.9, 1.1));
+  m.hp -= dmg; m.hurt = 1;
+  floater('-' + dmg, m.x + .5, m.y + .15, crit ? '#ffb02a' : '#ff4a4a', crit);
+  if (crit) sfx('crit');
+  dust(m.x + .5, m.y + .5, '#ffffff', 4);
+  sfx('hit');
+  if (G.acc.fang) G.hp = Math.min(maxHp(), G.hp + Math.max(1, Math.round(dmg * .06)));
+  if (m.hp <= 0) killMonster(m);
+}
+function killMonster(m) {
+  G.monsters.splice(G.monsters.indexOf(m), 1);
+  G.score += m.score; G.kills++;
+  dust(m.x + .5, m.y + .5, '#c9c2b0', 18);
+  const c = G.coins.find(k => k.x === m.x && k.y === m.y);
+  if (c) c.v += m.gold; else G.coins.push({ x: m.x, y: m.y, v: m.gold });
+  sfx('kill');
+  gainXp(m.xp, m.x + .5, m.y - .1);
+  if (!G.monsters.length) spawnPortal();
+}
+function gainXp(v, x, y) {
+  G.xp += v;
+  floater('+' + v + ' XP', x, y, '#7ab4ff');
+  while (G.xp >= xpNeed(G.lvl)) {
+    G.xp -= xpNeed(G.lvl); G.lvl++;
+    G.hp = maxHp();
+    const sk = SKILLS.find(s => s.lvl === G.lvl);
+    toast(sk ? `${heroName()} Lv. ${G.lvl}! ${sk.name} açıldı` : `${heroName()} seviye atladı! Lv. ${G.lvl}`);
+    dust(G.p.x + .5, G.p.y + .5, '#f5c04a', 24); sfx('level');
+  }
+}
+function spawnPortal() {
+  const dist = bfs(G.p.x, G.p.y);
+  let bx = G.p.x, by = G.p.y, bd = -1;
+  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++)
+    if (dist[y][x] > bd && !(G.chest && G.chest.x === x && G.chest.y === y)) { bd = dist[y][x]; bx = x; by = y; }
+  G.portal = { x: bx, y: by };
+  toast('Geçit açıldı!'); sfx('portal');
+}
+function hurtPlayer(raw) {
+  const p = G.p;
+  if (p.shield > 0) { floater('Engellendi', p.x + .5, p.y + .1, '#7ab4ff'); sfx('block'); return; }
+  const dmg = Math.max(1, Math.round(raw * 50 / (50 + defPow())));
+  G.hp -= dmg; p.hurt = 1; G.shake = RM ? 0 : 8;
+  floater('-' + dmg, p.x + .5, p.y + .1, '#ff4a4a');
+  sfx('hurt');
+  try { if (navigator.vibrate) navigator.vibrate(35); } catch (e) {}
+  if (G.hp <= 0) { G.hp = 0; gameOver(); }
+}
+function onArrive() {
+  const p = G.p; p.jumping = false;
+  const ci = G.coins.findIndex(c => c.x === p.x && c.y === p.y);
+  if (ci >= 0) {
+    const c = G.coins.splice(ci, 1)[0];
+    const v = Math.round(c.v * goldMul());
+    G.gold += v;
+    floater('+' + v, p.x + .5, p.y + .2, '#f5c04a');
+    sfx('coin');
+  }
+  if (G.chest && G.chest.x === p.x && G.chest.y === p.y) {
+    const v = Math.round(ri(25, 40) * (1 + .15 * (G.floor - 1)) * goldMul());
+    G.gold += v; G.score += 20; G.chest = null;
+    toast(`Kayıp hazine! +${v} altın`);
+    dust(p.x + .5, p.y + .5, '#f5c04a', 26); sfx('chest');
+  }
+  if (G.portal && G.portal.x === p.x && G.portal.y === p.y) levelComplete();
+}
+function levelComplete() {
+  const bonus = 50 * G.floor;
+  G.score += bonus; G.lastBonus = bonus;
+  G.hp = Math.min(maxHp(), G.hp + Math.ceil(maxHp() * .2));
+  G.state = 'shop'; G.shopTab = G.shopTab || 'weapon';
+  sfx('portal');
+  saveRun();
+  showShop();
+}
+function gameOver() {
+  G.state = 'over';
+  const entry = { name: heroName(), hero: G.hero, floor: G.floor, lvl: G.lvl, kills: G.kills, score: G.score, t: Date.now() };
+  G.lastRank = G.score > 0 ? addScore(entry) : -1;
+  G.lastT = entry.t;
+  setMusic(null); sfx('gameover');
+  syncBest();
+  clearRun();
+  showOver();
+}
+
+/* ---------- Kayma ---------- */
+function pickLine() {
+  const axis = Math.random() < .5 ? 'row' : 'col';
+  const near = axis === 'row' ? G.p.y : G.p.x;
+  const len = axis === 'row' ? G.h : G.w;
+  let idx = Math.random() < .55 ? near + ri(-1, 1) : ri(0, len - 1);
+  idx = Math.max(0, Math.min(len - 1, idx));
+  return { axis, idx, dir: Math.random() < .5 ? 1 : -1 };
+}
+function rotate(grid, a) {
+  const d = a.dir, w = G.w, h = G.h;
+  if (a.axis === 'row') {
+    const row = grid[a.idx].slice();
+    for (let x = 0; x < w; x++) grid[a.idx][(x + d + w) % w] = row[x];
+  } else {
+    const col = grid.map(r => r[a.idx]);
+    for (let y = 0; y < h; y++) grid[(y + d + h) % h][a.idx] = col[y];
+  }
+}
+function commitShift(a) {
+  const d = a.dir, w = G.w, h = G.h;
+  rotate(G.tiles, a); rotate(G.seeds, a);
+  const mv = e => {
+    if (!e) return;
+    if (a.axis === 'row' && e.y === a.idx) e.x = (e.x + d + w) % w;
+    else if (a.axis === 'col' && e.x === a.idx) e.y = (e.y + d + h) % h;
+    e.fx = e.x; e.fy = e.y; e.t = 1;
+  };
+  [G.p, ...G.monsters, ...G.coins, G.portal, G.chest].forEach(mv);
+  G.dirty = true;
+  ensureReach(.65);
+}
+
+/* ---------- Güncelleme ---------- */
+function update(dt) {
+  updateFx(dt);
+  if (G.state !== 'play') return;
+  const sh = G.shift;
+  if (sh.anim) {
+    sh.anim.t += dt / 420;
+    if (sh.anim.t >= 1) { commitShift(sh.anim); sh.anim = null; }
+    return;
+  }
+  sh.timer -= dt;
+  if (!sh.warn && sh.timer <= 1700) { sh.warn = pickLine(); sfx('rumble'); }
+  if (sh.timer <= 0) {
+    const pt = G.p.t;
+    [G.p, ...G.monsters].forEach(e => { e.t = 1; e.fx = e.x; e.fy = e.y; });
+    if (pt < 1) onArrive();
+    sh.anim = { ...sh.warn, t: 0 }; sh.warn = null;
+    sh.total = sh.timer = shiftInterval();
+    G.shake = RM ? 0 : 4; sfx('shift');
+    return;
+  }
+
+  const p = G.p;
+  p.atkCd -= dt;
+  for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
+  p.shield = Math.max(0, p.shield - dt);
+  p.lunge = Math.max(0, p.lunge - dt / 160);
+  p.slash = Math.max(0, p.slash - dt / 220);
+  p.hurt = Math.max(0, p.hurt - dt / 450);
+  if (p.t < 1) { p.t = Math.min(1, p.t + dt / p.dur); if (p.t >= 1) onArrive(); }
+  if (G.state !== 'play') return;
+  if (p.t >= 1) {
+    const d = input.queued || input.held;
+    if (d && tryMove(d)) input.queued = 0;
+  }
+  if (G.state !== 'play') return;
+
+  // Kat başında kısa bir hazırlanma süresi: canavarlar henüz kıpırdamaz
+  if (G.grace > 0) { G.grace -= dt; return; }
+  const pd = bfs(p.x, p.y);
+  for (const m of [...G.monsters]) {
+    m.atkCd -= dt;
+    m.hurt = Math.max(0, m.hurt - dt / 250);
+    m.lunge = Math.max(0, m.lunge - dt / 220);
+    if (m.t < 1) m.t = Math.min(1, m.t + dt / m.dur);
+    const dx = p.x - m.x, dy = p.y - m.y;
+    if (Math.abs(dx) + Math.abs(dy) === 1 && !p.jumping) {
+      const d = dirOf(dx, dy);
+      if (canPass(m.x, m.y, d)) {
+        if (m.atkCd <= 0 && m.t >= 1) {
+          m.atkCd = 1000; m.lunge = 1; m.face = d;
+          hurtPlayer(m.atk);
+          if (G.state !== 'play') return;
+        }
+        continue;
+      }
+    }
+    m.timer -= dt;
+    if (m.timer > 0 || m.t < 1) continue;
+    m.timer = m.move * rnd(.85, 1.15);
+    const opts = ALL.filter(d => canPass(m.x, m.y, d) && !occupied(m.x + DIRS[d][0], m.y + DIRS[d][1]));
+    if (!opts.length) continue;
+    const md = pd[m.y][m.x];
+    const chasing = md > 0 && md <= m.aggro;
+    let d = null;
+    if (chasing && !(m.erratic && Math.random() < m.erratic)) {
+      const better = opts.filter(o => pd[m.y + DIRS[o][1]][m.x + DIRS[o][0]] === md - 1);
+      if (better.length) d = pick(better);
+      else if (!m.erratic) continue;
+    }
+    if (d == null) {
+      const fwd = opts.filter(o => o !== OPP[m.face]);
+      d = pick(fwd.length && Math.random() < .75 ? fwd : opts);
+    }
+    m.face = d; m.fx = m.x; m.fy = m.y;
+    m.x += DIRS[d][0]; m.y += DIRS[d][1]; m.t = 0;
+  }
+}
+function updateFx(dt) {
+  if (!G) return;
+  G.shake = Math.max(0, (G.shake || 0) - dt / 40);
+  if (G.p) G.p.spinFx = Math.max(0, G.p.spinFx - dt / 350);
+  for (const b of G.bolts || []) {
+    b.t += dt / 170;
+    if (b.t >= 1 && !b.done) {
+      b.done = true;
+      dust(b.x1, b.y1, '#9ad0ff', 10);
+      if (b.target && G.monsters.includes(b.target) && G.state === 'play') hitMonster(b.target, atkPow());
+    }
+  }
+  if (G.bolts) G.bolts = G.bolts.filter(b => b.t < 1.4);
+  for (const f of G.floaters) { f.life -= dt / 950; f.y -= dt / 1300; }
+  G.floaters = G.floaters.filter(f => f.life > 0);
+  for (const q of G.parts) { q.life -= dt / q.ttl; q.x += q.vx * dt / 1000; q.y += q.vy * dt / 1000; if (!q.float) { q.vx *= .94; q.vy *= .94; } }
+  G.parts = G.parts.filter(q => q.life > 0);
+}
+function floater(text, x, y, color, big) { G.floaters.push({ text, x, y, color, big, life: 1 }); }
+function dust(x, y, color, k) {
+  if (!G || !G.parts) return;
+  for (let i = 0; i < k; i++) {
+    const a = rnd(0, Math.PI * 2), s = rnd(.6, 2.4);
+    G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color, life: 1, ttl: rnd(300, 650), sz: rnd(.04, .09) });
+  }
+}
+
+/* ---------- Çizim ---------- */
+let VW = 0, VH = 0, DPR = 1;
+function resize() {
+  const r = $('stage').getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = Math.max(1, r.width); VH = Math.max(1, r.height);
+  cv.width = cacheCv.width = Math.round(VW * DPR);
+  cv.height = cacheCv.height = Math.round(VH * DPR);
+  lightCv.width = Math.round(VW); lightCv.height = Math.round(VH);
+  if (G) G.dirty = true;
+}
+function layout() {
+  const w = G.w, h = G.h, c = Math.floor(Math.min(VW / w, VH / h)), bw = c * w, bh = c * h;
+  return { w, h, c, bw, bh, ox: Math.round((VW - bw) / 2), oy: Math.round((VH - bh) / 2) };
+}
+// Piksel ızgarasına oturt: ölçekli spritelar bulanıklaşmasın
+const snap = v => Math.round(v * DPR) / DPR;
+const spriteSize = (c, k) => Math.max(1, Math.round(c * k * DPR / SZ)) * SZ / DPR;
+function floorTile(g, X, Y, c, s, T) {
+  const u = Math.max(1, Math.round(c / 18));
+  g.fillStyle = s < .5 ? T.floorA : T.floorB;
+  g.fillRect(X, Y, c, c);
+  // Taş plakalar ve derz çizgileri
+  const m = Math.round(c * (.38 + .24 * s));
+  const v1 = X + Math.round(c * (.25 + .5 * ((s * 7) % 1))), v2 = X + Math.round(c * (.25 + .5 * ((s * 13) % 1)));
+  g.fillStyle = T.grout;
+  g.fillRect(X, Y + m, c, u); g.fillRect(v1, Y, u, m); g.fillRect(v2, Y + m, u, c - m);
+  g.fillStyle = 'rgba(255,255,255,.045)';
+  g.fillRect(X, Y + m + u, c, u); g.fillRect(v1 + u, Y, u, m); g.fillRect(v2 + u, Y + m + u, u, c - m - u);
+  // Süslemeler: tohuma göre kemik, kafatası, ot ya da su birikintisi, çakıl, çatlak
+  const r = (s * 997) % 1, dx = X + Math.round(c * (.22 + .4 * r)), dy = Y + Math.round(c * (.3 + .35 * ((s * 31) % 1)));
+  if (s > .80 && s <= .84) {
+    g.fillStyle = '#d9d2c0';
+    g.fillRect(dx + u, dy + u, u * 5, u);
+    g.fillRect(dx, dy, u * 2, u); g.fillRect(dx, dy + u * 2, u * 2, u);
+    g.fillRect(dx + u * 5, dy, u * 2, u); g.fillRect(dx + u * 5, dy + u * 2, u * 2, u);
+    g.fillStyle = '#a8a08c'; g.fillRect(dx + u, dy + u * 2, u * 4, u);
+  } else if (s > .84 && s <= .87) {
+    g.fillStyle = '#d9d2c0';
+    g.fillRect(dx, dy, u * 5, u * 3); g.fillRect(dx + u, dy + u * 3, u * 3, u);
+    g.fillStyle = '#120d1c';
+    g.fillRect(dx + u, dy + u, u, u); g.fillRect(dx + u * 3, dy + u, u, u);
+  } else if (s > .87 && s <= .91) {
+    if (T.from === 1) {
+      g.fillStyle = T.moss;
+      g.fillRect(dx, dy, u, u * 3); g.fillRect(dx + u * 2, dy - u, u, u * 4); g.fillRect(dx + u * 4, dy + u, u, u * 2);
+      g.fillRect(dx + u * 6, dy, u, u * 3);
+    } else {
+      g.fillStyle = 'rgba(0,0,0,.35)';
+      g.fillRect(dx - u, dy, u * 8, u * 3); g.fillRect(dx, dy - u, u * 6, u * 5);
+      g.fillStyle = T.moss; g.globalAlpha = .35;
+      g.fillRect(dx + u, dy, u * 3, u); g.globalAlpha = 1;
+    }
+  } else if (s > .91 && s <= .95) {
+    g.fillStyle = T.line;
+    g.fillRect(dx, dy, u * 2, u * 2); g.fillRect(dx + u * 4, dy + u * 2, u * 2, u); g.fillRect(dx + u * 2, dy + u * 4, u, u);
+    g.fillStyle = T.hi;
+    g.fillRect(dx, dy, u, u);
+  } else if (s > .95) {
+    g.fillStyle = T.grout;
+    for (let i = 0; i < 5; i++) g.fillRect(dx + i * u, dy + (i % 2 ? i : i + 1) * u, u, u * 2);
+  }
+}
+// Duvarlar iki geçişte çizilir: önce tuğlalı koyu ön yüz (yükseklik hissi), sonra açık üst yüz
+function drawBoard(g, L, an, e) {
+  const { w, h, c, bw, bh, ox, oy } = L, T = themeFor(G.floor);
+  const lineOff = (x, y) => {
+    if (!an) return [0, 0];
+    if (an.axis === 'row' && y === an.idx) return [e * an.dir * c, 0];
+    if (an.axis === 'col' && x === an.idx) return [0, e * an.dir * c];
+    return [0, 0];
+  };
+  const each = (x, y, fn) => {
+    const [dx, dy] = lineOff(x, y);
+    fn(dx, dy);
+    if (dx) fn(dx - an.dir * bw, 0);
+    if (dy) fn(0, dy - an.dir * bh);
+  };
+  g.save();
+  g.beginPath(); g.rect(ox, oy, bw, bh); g.clip();
+  g.fillStyle = T.grout; g.fillRect(ox, oy, bw, bh);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    each(x, y, (dx, dy) => floorTile(g, ox + x * c + dx, oy + y * c + dy, c, G.seeds[y][x], T));
+  const wt = Math.max(4, Math.round(c * .26)), hw = Math.round(wt / 2), fh = Math.max(4, Math.round(c * .2));
+  const u = Math.max(1, Math.round(c / 18)), brick = Math.max(6, Math.round(c / 3));
+  const rectsOf = (x, y, X, Y) => {
+    const t = G.tiles[y][x], r = [];
+    if (!(t & N)) r.push([X - hw, Y - hw, c + wt, wt]);
+    if (!(t & S)) r.push([X - hw, Y + c - hw, c + wt, wt]);
+    if (!(t & W)) r.push([X - hw, Y - hw, wt, c + wt]);
+    if (!(t & E)) r.push([X + c - hw, Y - hw, wt, c + wt]);
+    r.push([X - hw, Y - hw, wt, wt], [X + c - hw, Y - hw, wt, wt], [X - hw, Y + c - hw, wt, wt], [X + c - hw, Y + c - hw, wt, wt]);
+    return r;
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) each(x, y, (dx, dy) => {
+      const X = ox + x * c + dx, Y = oy + y * c + dy, rs = rectsOf(x, y, X, Y), sd = G.seeds[y][x];
+      if (pass === 0) {
+        g.fillStyle = 'rgba(0,0,0,.38)';
+        for (const r of rs) g.fillRect(r[0] + u, r[1] + r[3], r[2], fh + Math.round(fh * .7));
+        g.fillStyle = T.front;
+        for (const r of rs) g.fillRect(r[0], r[1], r[2], r[3] + fh);
+        // Ön yüzde şaşırtmalı tuğla derzleri
+        g.fillStyle = T.line;
+        for (const r of rs) {
+          const fy0 = r[1] + r[3], mid = fy0 + Math.round(fh / 2);
+          g.fillRect(r[0], mid, r[2], u);
+          for (let bx = r[0] + brick / 2; bx < r[0] + r[2]; bx += brick) g.fillRect(Math.round(bx), fy0, u, mid - fy0);
+          for (let bx = r[0] + brick; bx < r[0] + r[2]; bx += brick) g.fillRect(Math.round(bx), mid, u, fy0 + fh - mid);
+          g.fillRect(r[0], fy0 + fh - u, r[2], u);
+        }
+        if (T.from === 1 && sd > .55) {
+          g.fillStyle = T.moss; g.globalAlpha = .7;
+          for (const r of rs) if (r[2] > r[3]) {
+            const mx = r[0] + Math.round(r[2] * ((sd * 17) % 1) * .7);
+            g.fillRect(mx, r[1] + r[3], u * 3, u); g.fillRect(mx, r[1] + r[3] + u, u, u * 2); g.fillRect(mx + u * 2, r[1] + r[3] + u, u, u);
+          }
+          g.globalAlpha = 1;
+        }
+      } else {
+        g.fillStyle = T.top;
+        for (const r of rs) g.fillRect(r[0], r[1], r[2], r[3]);
+        g.fillStyle = T.hi;
+        for (const r of rs) g.fillRect(r[0], r[1], r[2], u);
+        g.fillStyle = T.line;
+        for (const r of rs) {
+          g.fillRect(r[0], r[1] + r[3] - u, r[2], u);
+          if (r[2] > r[3]) for (let sx = r[0] + c / 2; sx < r[0] + r[2] - u; sx += c / 2) g.fillRect(Math.round(sx), r[1] + u, u, r[3] - u * 2);
+          else if (r[3] > r[2]) for (let sy = r[1] + c / 2; sy < r[1] + r[3] - u; sy += c / 2) g.fillRect(r[0] + u, Math.round(sy), r[2] - u * 2, u);
+        }
+      }
+    });
+  }
+  g.restore();
+  return { lineOff, each, wt, hw, fh };
+}
+function render(time) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(0, 0, VW, VH);
+  if (!G || !G.tiles) return;
+  const L = layout(), { w, h, c, bw, bh, ox, oy } = L;
+  ctx.save();
+  if (G.shake) ctx.translate(rnd(-G.shake, G.shake) * .6, rnd(-G.shake, G.shake) * .6);
+
+  const an = G.shift.anim, e = an ? ease(an.t) : 0;
+  let B;
+  if (an) B = drawBoard(ctx, L, an, e);
+  else {
+    if (G.dirty) {
+      ck.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ck.clearRect(0, 0, VW, VH);
+      drawBoard(ck, L, null, 0);
+      G.dirty = false;
+    }
+    ctx.drawImage(cacheCv, 0, 0, VW, VH);
+    const wt = Math.max(4, Math.round(c * .26));
+    B = { lineOff: () => [0, 0], each: (x, y, fn) => fn(0, 0), wt, hw: Math.round(wt / 2), fh: Math.max(4, Math.round(c * .2)) };
+  }
+  const { each, hw, fh } = B;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(ox, oy, bw, bh); ctx.clip();
+  // Kayma uyarısı
+  const wn = G.shift.warn;
+  if (wn) {
+    ctx.fillStyle = `rgba(74,168,255,${.14 + .1 * Math.sin(time / 90)})`;
+    if (wn.axis === 'row') ctx.fillRect(ox, oy + wn.idx * c, bw, c);
+    else ctx.fillRect(ox + wn.idx * c, oy, c, bh);
+  }
+  // Meşaleler: üst duvarı kapalı karoların bir kısmında
+  const torches = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const s = G.seeds[y][x];
+    if (s < .17 && !(G.tiles[y][x] & N)) each(x, y, (dx, dy) => torches.push([ox + x * c + c / 2 + dx, oy + y * c + hw + fh * .4 + dy, s]));
+  }
+  if (G.state === 'play' && !an) for (const [tx, ty] of torches) if (Math.random() < .035) {
+    G.parts.push({ x: (tx - ox) / c + rnd(-.05, .05), y: (ty - oy) / c - .12, vx: rnd(-.15, .15), vy: rnd(-.9, -.45),
+      color: pick(['#ffb02a', '#ff7a1a', '#ffd04a']), life: 1, ttl: rnd(700, 1300), sz: .045, float: true });
+  }
+  const ctr = (ent, dx, dy) => {
+    const k = ent.t == null || ent.t >= 1 ? 1 : ent.t * (2 - ent.t);
+    const rx = ent.fx == null ? ent.x : ent.fx + (ent.x - ent.fx) * k;
+    const ry = ent.fy == null ? ent.y : ent.fy + (ent.y - ent.fy) * k;
+    return [ox + (rx + .5) * c + dx, oy + (ry + .5) * c + dy];
+  };
+  if (G.portal) each(G.portal.x, G.portal.y, (dx, dy) => drawPortal(...ctr(G.portal, dx, dy), c, time));
+  if (G.chest) each(G.chest.x, G.chest.y, (dx, dy) => {
+    const [x, y] = ctr(G.chest, dx, dy), s = spriteSize(c, .95);
+    shadow(x, y, c * .8);
+    ctx.drawImage(SPR.chest.r, snap(x - s / 2), snap(y + c * .3 - s), s, s);
+    if ((time / 100 + G.chest.x * 5) % 25 < 2) sparkle(x + c * .2, y - c * .1, c);
+  });
+  // Canavarın altında kalan altınlar canavarın arkasında kalsın
+  for (const k of G.coins) if (monsterAt(k.x, k.y)) each(k.x, k.y, (dx, dy) => drawCoin(...ctr(k, dx, dy), c, time, k));
+  const ents = [...G.monsters.map(m => ({ m, y: m.y })), { p: G.p, y: G.p.y }].sort((a, b) => a.y - b.y);
+  for (const en of ents) {
+    if (en.m) each(en.m.x, en.m.y, (dx, dy) => drawMonster(en.m, ...ctr(en.m, dx, dy), c, time));
+    else each(G.p.x, G.p.y, (dx, dy) => drawPlayer(G.p, ...ctr(G.p, dx, dy), c, time));
+  }
+  const drawParts = float => {
+    for (const q of G.parts) {
+      if (!!q.float !== float) continue;
+      ctx.globalAlpha = Math.max(0, q.life);
+      ctx.fillStyle = q.color;
+      const s = Math.max(2, q.sz * c);
+      ctx.fillRect(snap(ox + q.x * c - s / 2), snap(oy + q.y * c - s / 2), s, s);
+    }
+    ctx.globalAlpha = 1;
+  };
+  drawParts(false);
+
+  // Işık: karanlık katman, oyuncu, meşale ve geçit çevresinde açılır
+  const [ppx, ppy] = ctr(G.p, 0, 0);
+  const lights = [[ppx, ppy, c * 3.4, 1]];
+  for (const [tx, ty, s] of torches) lights.push([tx, ty + c * .2, c * (1.9 + .12 * Math.sin(time / 110 + s * 50)), .9]);
+  if (G.portal) lights.push([...ctr(G.portal, 0, 0), c * 2.2, .9]);
+  lk.setTransform(1, 0, 0, 1, 0, 0);
+  lk.globalCompositeOperation = 'source-over';
+  lk.clearRect(0, 0, lightCv.width, lightCv.height);
+  lk.fillStyle = 'rgba(2,4,12,.58)';
+  lk.fillRect(ox, oy, bw, bh);
+  lk.globalCompositeOperation = 'destination-out';
+  for (const [x, y, r, a] of lights) {
+    const g = lk.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    lk.fillStyle = g; lk.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  ctx.drawImage(lightCv, 0, 0, VW, VH);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const [tx, ty, s] of torches) {
+    const r = c * 1.4, g = ctx.createRadialGradient(tx, ty, 0, tx, ty, r);
+    g.addColorStop(0, 'rgba(255,150,50,.26)'); g.addColorStop(1, 'rgba(255,120,30,0)');
+    ctx.fillStyle = g; ctx.fillRect(tx - r, ty - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  for (const [tx, ty, s] of torches) drawTorch(tx, ty, c, time, s);
+  for (const k of G.coins) if (!monsterAt(k.x, k.y)) each(k.x, k.y, (dx, dy) => drawCoin(...ctr(k, dx, dy), c, time, k));
+  for (const b of G.bolts) {
+    const k = Math.min(1, b.t), bx = ox + (b.x0 + (b.x1 - b.x0) * k) * c, by = oy + (b.y0 + (b.y1 - b.y0) * k) * c;
+    if (b.t > 1) continue;
+    const gl = ctx.createRadialGradient(bx, by, 0, bx, by, c * .4);
+    gl.addColorStop(0, 'rgba(160,220,255,.9)'); gl.addColorStop(1, 'rgba(60,120,255,0)');
+    ctx.fillStyle = gl; ctx.fillRect(bx - c * .4, by - c * .4, c * .8, c * .8);
+    const u = Math.max(2, Math.round(c / 12));
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(snap(bx - u), snap(by - u), u * 2, u * 2);
+    for (let i = 1; i < 4; i++) {
+      const tk = Math.max(0, k - i * .12);
+      ctx.globalAlpha = .6 - i * .15; ctx.fillStyle = '#9ad0ff';
+      ctx.fillRect(snap(ox + (b.x0 + (b.x1 - b.x0) * tk) * c - u / 2), snap(oy + (b.y0 + (b.y1 - b.y0) * tk) * c - u / 2), u, u);
+    }
+    ctx.globalAlpha = 1;
+  }
+  drawParts(true);
+  if (wn) {
+    ctx.fillStyle = '#6cb8ff';
+    ctx.globalAlpha = .6 + .35 * Math.sin(time / 90);
+    for (let i = 0; i < (wn.axis === 'row' ? w : h); i++) {
+      const cx = ox + (wn.axis === 'row' ? i : wn.idx) * c + c / 2, cy = oy + (wn.axis === 'row' ? wn.idx : i) * c + c / 2;
+      chevron(cx, cy, c * .17, wn.axis === 'row' ? (wn.dir > 0 ? E : W) : (wn.dir > 0 ? S : N));
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Kenar karartması
+  const vg = ctx.createRadialGradient(ox + bw / 2, oy + bh / 2, Math.min(bw, bh) * .35, ox + bw / 2, oy + bh / 2, Math.max(bw, bh) * .75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)');
+  ctx.fillStyle = vg; ctx.fillRect(ox, oy, bw, bh);
+  ctx.restore();
+
+  ctx.strokeStyle = '#2a3a5c'; ctx.lineWidth = 2;
+  ctx.strokeRect(ox - 1, oy - 1, bw + 2, bh + 2);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  for (const f of G.floaters) {
+    ctx.globalAlpha = Math.min(1, f.life * 1.6);
+    const sz = Math.max(13, Math.round(c * (f.big ? .5 : .36)));
+    ctx.font = `900 ${sz}px Nunito, system-ui, sans-serif`;
+    ctx.lineWidth = Math.max(3, sz / 5); ctx.strokeStyle = '#0a0612';
+    ctx.strokeText(f.text, ox + f.x * c, oy + f.y * c);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, ox + f.x * c, oy + f.y * c);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function chevron(x, y, s, d) {
+  const [dx, dy] = DIRS[d], px = -dy, py = dx;
+  ctx.beginPath();
+  ctx.moveTo(x + dx * s, y + dy * s);
+  ctx.lineTo(x - dx * s + px * s, y - dy * s + py * s);
+  ctx.lineTo(x - dx * s * .3, y - dy * s * .3);
+  ctx.lineTo(x - dx * s - px * s, y - dy * s - py * s);
+  ctx.closePath(); ctx.fill();
+}
+function shadow(x, y, w) {
+  ctx.fillStyle = 'rgba(0,0,0,.42)';
+  ctx.beginPath(); ctx.ellipse(x, y + w * .32, w * .38, w * .12, 0, 0, Math.PI * 2); ctx.fill();
+}
+function sparkle(x, y, c) {
+  const u = Math.max(1, Math.round(c / 20));
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(snap(x - u / 2), snap(y - u * 2), u, u * 4);
+  ctx.fillRect(snap(x - u * 2), snap(y - u / 2), u * 4, u);
+}
+function drawTorch(x, y, c, time, s) {
+  const u = Math.max(1, Math.round(c / 16));
+  x = snap(x); y = snap(y);
+  ctx.fillStyle = '#2a1a10'; ctx.fillRect(x - u * 2, y + u, u * 4, u);
+  ctx.fillStyle = '#5a3a22'; ctx.fillRect(x - u, y, u * 2, u * 4);
+  ctx.fillStyle = '#8a6a4a'; ctx.fillRect(x - u * 1.5, y - u, u * 3, u);
+  const f = Math.floor((time / 90 + s * 90) % 3);
+  const hgt = [4, 5, 3][f];
+  ctx.fillStyle = '#c4300c'; ctx.fillRect(x - u * 1.5, y - u * (hgt + 1), u * 3, u * hgt);
+  ctx.fillStyle = '#ff7a1a'; ctx.fillRect(x - u, y - u * (hgt + 1), u * 2, u * hgt);
+  ctx.fillStyle = '#ffd04a'; ctx.fillRect(x - u * .5, y - u * (hgt - 1), u, u * (hgt - 2));
+  ctx.fillRect(x - u * .5 + (f - 1) * u * .5, y - u * (hgt + 2), u, u);
+}
+// Sınıfın silahı: kılıç, balta, hançer ya da asa. Hem oyunda hem seçim ekranında kullanılır.
+function drawWeapon(g, hx, hy, sd, p, c, type, color) {
+  const sw = p.slash > 0 ? (1 - p.slash) * 2.2 - 1.2 : 0;
+  const seg = (x0, y0, x1, y1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+  g.lineCap = 'butt';
+  if (type === 'staff') {
+    const ang = -Math.PI / 2.4 + sw * .8, len = c * .62;
+    const dx = Math.cos(ang) * len * sd, dy = Math.sin(ang) * len;
+    seg(hx - dx * .35, hy - dy * .35, hx + dx, hy + dy, Math.max(3, c * .1), '#140e1e');
+    seg(hx - dx * .35, hy - dy * .35, hx + dx, hy + dy, Math.max(2, c * .055), '#8a5a2c');
+    const ox = hx + dx, oy = hy + dy, r = c * .09;
+    const gl = g.createRadialGradient(ox, oy, 0, ox, oy, r * 3.2);
+    gl.addColorStop(0, color); gl.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = .55; g.fillStyle = gl; g.fillRect(ox - r * 3.2, oy - r * 3.2, r * 6.4, r * 6.4); g.globalAlpha = 1;
+    g.fillStyle = '#140e1e'; g.beginPath(); g.arc(ox, oy, r + 1.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = color; g.beginPath(); g.arc(ox, oy, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffffff'; g.fillRect(ox - r * .5, oy - r * .5, Math.max(1, r * .45), Math.max(1, r * .45));
+    return;
+  }
+  const ang = -Math.PI / 4 + sw;
+  const len = c * (type === 'dagger' ? .32 : type === 'axe' ? .56 : .5);
+  const ux = Math.cos(ang) * sd, uy = Math.sin(ang), dx = ux * len, dy = uy * len;
+  const nx = -uy * sd, ny = ux * sd;
+  if (type === 'axe') {
+    seg(hx - dx * .15, hy - dy * .15, hx + dx, hy + dy, Math.max(3, c * .1), '#140e1e');
+    seg(hx - dx * .15, hy - dy * .15, hx + dx, hy + dy, Math.max(2, c * .055), '#7a5230');
+    const tx = hx + dx * .92, ty = hy + dy * .92, b = c * .2;
+    const pts = [[tx + ux * b * .3, ty + uy * b * .3], [tx + nx * b, ty + ny * b + uy * b * .4], [tx + nx * b * 1.05 - ux * b * .9, ty + ny * b - uy * b * .9], [tx - ux * b * .6, ty - uy * b * .6]];
+    g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath();
+    g.fillStyle = color; g.fill(); g.lineWidth = Math.max(1.5, c * .03); g.strokeStyle = '#140e1e'; g.stroke();
+    return;
+  }
+  seg(hx, hy, hx + dx * 1.04, hy + dy * 1.04, Math.max(3, c * .12), '#140e1e');
+  seg(hx, hy, hx + dx, hy + dy, Math.max(2, c * .07), color);
+  seg(hx + dx * .25, hy + dy * .25, hx + dx * .9, hy + dy * .9, Math.max(1, c * .02), 'rgba(255,255,255,.6)');
+  const gw = c * (type === 'dagger' ? .07 : .11);
+  seg(hx - nx * gw, hy - ny * gw, hx + nx * gw, hy + ny * gw, Math.max(2, c * .065), '#f5c04a');
+  seg(hx, hy, hx - dx * .18, hy - dy * .18, Math.max(2, c * .06), '#7a5230');
+}
+function drawPlayer(p, x, y, c, time) {
+  const s = spriteSize(c, 1.1), u = s / SZ, [fx, fy] = DIRS[p.face], L = p.lunge * c * .16;
+  let bx = x + fx * L, by = y + fy * L, lift = 0;
+  if (p.jumping && p.t < 1) lift = Math.sin(Math.PI * p.t) * c * .6;
+  shadow(x, y, c * .9 * (1 - lift / (c * 1.6)));
+  by -= lift;
+  if (p.spinFx > 0) {
+    ctx.strokeStyle = `rgba(255,255,255,${p.spinFx})`;
+    ctx.lineWidth = Math.max(3, c * .1);
+    const a0 = (1 - p.spinFx) * Math.PI * 4;
+    ctx.beginPath(); ctx.arc(bx, by - c * .1, c * .66, a0, a0 + Math.PI * 1.5); ctx.stroke();
+  }
+  // Yürürken bacak kareleri, dururken hafif nefes
+  const moving = p.t < 1 || (input.held && G.state === 'play');
+  const frame = moving ? [0, 1, 0, 2][Math.floor(time / 120) % 4] : 0;
+  const breathe = !moving && Math.floor(time / 600) % 2 ? u : 0;
+  const back = p.face === N;
+  const set = (HEROES[G.hero] || HERO)[back ? 'back' : 'front'][frame];
+  const left = snap(bx - s / 2), top = snap(by + c * .36 - s) + breathe;
+  const sd = p.side, hx = left + (sd > 0 ? 16.5 : 7.5) * u, hy = top + 17.5 * u;
+  if (raging()) {
+    const rg = ctx.createRadialGradient(bx, by - c * .15, 0, bx, by - c * .15, c * .7);
+    rg.addColorStop(0, `rgba(255,60,40,${.35 + .15 * Math.sin(time / 90)})`); rg.addColorStop(1, 'rgba(255,60,40,0)');
+    ctx.fillStyle = rg; ctx.fillRect(bx - c * .7, by - c * .85, c * 1.4, c * 1.4);
+  }
+  if (back) drawWeapon(ctx, hx, hy, sd, p, c, cls().weapon, weaponColor());
+  ctx.drawImage(p.hurt > .6 ? set.wr : set.r, left, top, s, s);
+  if (!back) drawWeapon(ctx, hx, hy, sd, p, c, cls().weapon, weaponColor());
+  // Kahramanın başının üstünde adı
+  const nm = heroName(), fs = Math.max(10, Math.round(c * .24));
+  ctx.font = `900 ${fs}px Nunito, system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(3, fs / 4); ctx.strokeStyle = 'rgba(10,6,18,.9)';
+  ctx.strokeText(nm, bx, top + u * 2);
+  ctx.fillStyle = '#ffe9a8'; ctx.fillText(nm, bx, top + u * 2);
+  if (p.slash > 0 && G.hero !== 'mage') {
+    const cx = x + fx * c * .5, cy = y + fy * c * .5 - c * .15;
+    const a = Math.atan2(fy, fx);
+    ctx.strokeStyle = `rgba(230,240,255,${p.slash})`;
+    ctx.lineWidth = Math.max(3, c * .15 * p.slash);
+    ctx.beginPath(); ctx.arc(cx - fx * c * .25, cy - fy * c * .25, c * .52, a - 1.1, a + 1.1); ctx.stroke();
+  }
+  if (p.shield > 0) {
+    ctx.strokeStyle = `rgba(110,180,255,${.5 + .3 * Math.sin(time / 120)})`;
+    ctx.fillStyle = 'rgba(80,150,255,.15)';
+    ctx.lineWidth = Math.max(2, c * .06);
+    ctx.beginPath(); ctx.arc(bx, by - c * .15, c * .6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+}
+function drawMonster(m, x, y, c, time) {
+  const b = MTYPES[m.type], set = SPR[m.type];
+  const s = spriteSize(c, b.size), u = s / SZ;
+  const [fx, fy] = DIRS[m.face] || [0, 1], L = m.lunge * c * .2;
+  x += fx * L; y += fy * L;
+  const ph = time / 1000 + m.seed;
+  if (m.type !== 'bat') shadow(x, y, c * Math.min(1.3, b.size) * .9);
+  else shadow(x, y + c * .1, c * .55);
+  const flip = G.p.x < m.x;
+  const img = m.hurt > .5 ? (flip ? set.wl : set.wr) : (flip ? set.l : set.r);
+  let dw = s, dh = s, top = y + c * .36 - s;
+  if (m.type === 'bat') {
+    dh = s * (.8 + .2 * Math.sin(time / 70 + m.seed));
+    top = y - s * .8 + Math.sin(ph * 3) * c * .06;
+  } else if (m.t < 1) top -= Math.sin(m.t * Math.PI) * c * .12;
+  else if (m.type === 'golem' || m.type === 'boss') { dh = s * (1 + .03 * Math.sin(ph * 2.5)); top = y + c * .36 - dh; }
+  else if (m.type === 'spider') dw = s * (1 + .05 * Math.sin(ph * 9));
+  else top -= (Math.floor(ph * 3) % 2) * u;
+  ctx.drawImage(img, snap(x - dw / 2), snap(top), dw, dh);
+  if (m.hp < m.maxHp) {
+    const bwid = c * .72, hh = Math.max(3, Math.round(c * .08)), bx = x - bwid / 2, by = top + u * 2 - hh - 3;
+    ctx.fillStyle = '#0a0612'; ctx.fillRect(bx - 1, by - 1, bwid + 2, hh + 2);
+    ctx.fillStyle = '#e0413f'; ctx.fillRect(bx, by, bwid * Math.max(0, m.hp / m.maxHp), hh);
+  }
+}
+// Altın: köşeleri kırpılmış piksel para, dönerken daralır
+function drawCoin(x, y, c, time, k) {
+  const u = Math.max(1, Math.round(c * DPR / 24)) / DPR, big = k.v >= 10 ? 1.4 : 1;
+  const bob = Math.round(Math.sin(time / 300 + k.x * 1.7 + k.y) * 1.5) * u;
+  const fr = Math.floor((time / 130 + k.x * 3 + k.y) % 4);
+  const cw = Math.round([6, 4, 2, 4][fr] * big) * u, ch = Math.round(6 * big) * u;
+  const cx = snap(x - cw / 2), cy = snap(y + bob - ch / 2);
+  const glow = ctx.createRadialGradient(x, y + bob, 0, x, y + bob, c * .35);
+  glow.addColorStop(0, 'rgba(255,200,80,.28)'); glow.addColorStop(1, 'rgba(255,200,80,0)');
+  ctx.fillStyle = glow; ctx.fillRect(x - c * .35, y + bob - c * .35, c * .7, c * .7);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(snap(x - 3 * u * big), snap(y + ch / 2 + u * 2), 6 * u * big, u);
+  ctx.fillStyle = '#7a4a10';
+  ctx.fillRect(cx - u, cy, cw + u * 2, ch); ctx.fillRect(cx, cy - u, cw, ch + u * 2);
+  ctx.fillStyle = '#ffd04a'; ctx.fillRect(cx, cy, cw, ch);
+  ctx.fillStyle = '#d99a22'; ctx.fillRect(cx, cy + ch - u, cw, u);
+  if (cw > 2 * u) ctx.fillRect(cx + cw - u, cy, u, ch);
+  ctx.fillStyle = '#fff3c0'; ctx.fillRect(cx, cy, Math.max(u, cw - u * 2) > u ? u : u, Math.round(ch / 2 / u) * u);
+  if ((time / 80 + k.x * 7 + k.y * 3) % 40 < 1.5) sparkle(x + c * .12, y - c * .12, c);
+}
+function drawPortal(x, y, c, time) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, c * .6);
+  g.addColorStop(0, 'rgba(160,220,255,.95)'); g.addColorStop(.5, 'rgba(60,120,255,.4)'); g.addColorStop(1, 'rgba(60,120,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - c * .65, y - c * .65, c * 1.3, c * 1.3);
+  ctx.lineWidth = Math.max(2, c * .06);
+  for (let i = 0; i < 3; i++) {
+    ctx.strokeStyle = i % 2 ? '#3d8bff' : '#cfeaff';
+    const a = time / (380 + i * 140) * (i % 2 ? -1 : 1);
+    ctx.beginPath(); ctx.arc(x, y, c * (.16 + i * .09), a, a + Math.PI * 1.3); ctx.stroke();
+  }
+  const u = Math.max(2, Math.round(c / 14));
+  ctx.fillStyle = '#cfeaff';
+  for (let i = 0; i < 6; i++) {
+    const a = time / 600 + i * Math.PI / 3, r = c * (.42 + .05 * Math.sin(time / 200 + i));
+    ctx.fillRect(snap(x + Math.cos(a) * r - u / 2), snap(y + Math.sin(a) * r * .8 - u / 2), u, u);
+  }
+}
+
+/* ---------- Simgeler (arayüz) ---------- */
+function paintIcon(cnv, kind, color) {
+  const size = +cnv.getAttribute('width') || 40, k = cnv.getContext('2d');
+  cnv.width = cnv.height = Math.round(size * DPR);
+  k.setTransform(DPR * size / 40, 0, 0, DPR * size / 40, 0, 0);
+  k.lineCap = 'round'; k.lineJoin = 'round'; k.imageSmoothingEnabled = false;
+  const circ = (x, y, r, f) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fillStyle = f; k.fill(); };
+  const line = (pts, w, col) => { k.beginPath(); k.moveTo(...pts[0]); pts.slice(1).forEach(p => k.lineTo(...p)); k.lineWidth = w; k.strokeStyle = col; k.stroke(); };
+  switch (kind) {
+    case 'dagger':
+      line([[13, 27], [27, 13]], 7, '#14101c');
+      line([[13, 27], [27, 13]], 4, color || '#dfe7f0');
+      line([[10, 22], [18, 30]], 4, '#f5c04a');
+      line([[7, 33], [12, 28]], 4, '#7a5230');
+      break;
+    case 'axe':
+      line([[9, 35], [28, 9]], 6, '#14101c');
+      line([[9, 35], [28, 9]], 3.5, '#7a5230');
+      k.fillStyle = color || '#c9d2dc'; k.strokeStyle = '#14101c'; k.lineWidth = 2;
+      k.beginPath(); k.moveTo(22, 8); k.lineTo(31, 3); k.quadraticCurveTo(39, 13, 34, 22); k.lineTo(27, 15); k.closePath(); k.fill(); k.stroke();
+      break;
+    case 'staff':
+      line([[9, 36], [27, 11]], 6, '#14101c');
+      line([[9, 36], [27, 11]], 3.5, '#8a5a2c');
+      circ(29, 9, 7, '#14101c'); circ(29, 9, 5.5, color || '#5fd0ff'); circ(27, 7, 1.8, '#ffffff');
+      break;
+    case 'sword': case 'bigsword':
+      line([[10, 30], [31, 9]], 7, '#14101c');
+      line([[10, 30], [31, 9]], 4, color || '#dfe7f0');
+      line([[7, 23], [17, 33]], 4, '#f5c04a');
+      line([[5, 35], [9, 31]], 4, '#7a5230');
+      break;
+    case 'armor':
+      k.fillStyle = color || '#cfd6de';
+      k.beginPath(); k.moveTo(12, 6); k.lineTo(28, 6); k.lineTo(35, 12); k.lineTo(30, 17); k.lineTo(30, 34); k.lineTo(10, 34); k.lineTo(10, 17); k.lineTo(5, 12); k.closePath(); k.fill();
+      k.fillStyle = 'rgba(0,0,0,.25)'; k.fillRect(19, 8, 2, 26);
+      k.fillStyle = 'rgba(255,255,255,.35)'; k.fillRect(13, 12, 4, 10);
+      break;
+    case 'ring':
+      k.beginPath(); k.arc(20, 25, 9, 0, Math.PI * 2); k.lineWidth = 4; k.strokeStyle = '#f5c04a'; k.stroke();
+      circ(20, 13, 5, '#e0413f'); circ(18.5, 11.5, 1.5, '#ffb0a0');
+      break;
+    case 'boots':
+      k.fillStyle = '#9a6a3c'; k.beginPath(); k.moveTo(12, 6); k.lineTo(22, 6); k.lineTo(22, 22); k.lineTo(33, 26); k.lineTo(33, 33); k.lineTo(9, 33); k.closePath(); k.fill();
+      k.fillStyle = '#f5c04a'; k.fillRect(12, 12, 10, 3);
+      line([[26, 10], [34, 8]], 2, '#7ab4ff'); line([[25, 15], [35, 14]], 2, '#7ab4ff');
+      break;
+    case 'neck':
+      k.beginPath(); k.arc(20, 12, 12, .2, Math.PI - .2); k.lineWidth = 2.5; k.strokeStyle = '#f5c04a'; k.stroke();
+      k.fillStyle = '#e0413f'; k.beginPath(); k.moveTo(20, 35); k.bezierCurveTo(9, 27, 12, 18, 20, 23); k.bezierCurveTo(28, 18, 31, 27, 20, 35); k.fill();
+      break;
+    case 'charm':
+      circ(20, 20, 13, '#c8901f'); circ(20, 20, 10.5, '#f5c04a');
+      k.fillStyle = '#fff0b0'; k.font = '900 14px Nunito, sans-serif'; k.textAlign = 'center'; k.textBaseline = 'middle'; k.fillText('★', 20, 21);
+      break;
+    case 'fang':
+      k.fillStyle = '#f4f0e0'; k.beginPath(); k.moveTo(10, 8); k.lineTo(30, 8); k.lineTo(20, 32); k.closePath(); k.fill();
+      circ(27, 30, 4, '#e0413f');
+      break;
+    case 'potion':
+      circ(20, 25, 10, '#5a1220'); circ(20, 25, 8.5, '#e0413f');
+      k.fillStyle = '#c7b9e8'; k.fillRect(16, 8, 8, 9);
+      k.fillStyle = '#8a5a2c'; k.fillRect(15, 5, 10, 4);
+      circ(16.5, 22, 2.5, 'rgba(255,255,255,.6)');
+      break;
+    case 'heart':
+      k.fillStyle = '#e0413f'; k.beginPath(); k.moveTo(20, 34); k.bezierCurveTo(3, 22, 7, 5, 20, 13); k.bezierCurveTo(33, 5, 37, 22, 20, 34); k.fill();
+      break;
+    case 'shield':
+      k.fillStyle = color || '#7aa0d8'; k.beginPath(); k.moveTo(20, 4); k.lineTo(34, 9); k.quadraticCurveTo(33, 27, 20, 36); k.quadraticCurveTo(7, 27, 6, 9); k.closePath(); k.fill();
+      k.fillStyle = 'rgba(255,255,255,.3)'; k.beginPath(); k.moveTo(20, 8); k.lineTo(20, 31); k.quadraticCurveTo(10, 24, 10, 12); k.closePath(); k.fill();
+      break;
+    case 'star':
+      k.fillStyle = '#f5c04a'; k.beginPath();
+      for (let i = 0; i < 10; i++) { const r = i % 2 ? 7 : 16, a = -Math.PI / 2 + i * Math.PI / 5; k.lineTo(20 + Math.cos(a) * r, 21 + Math.sin(a) * r); }
+      k.closePath(); k.fill();
+      break;
+    case 'wind':
+      line([[6, 14], [26, 14], [30, 10], [27, 6]], 3.5, '#7ad8ff');
+      line([[6, 22], [32, 22], [35, 26], [31, 30]], 3.5, '#7ad8ff');
+      line([[10, 30], [20, 30]], 3.5, '#7ad8ff');
+      break;
+    case 'spin':
+      k.beginPath(); k.arc(20, 20, 12, -.4, Math.PI * 1.6); k.lineWidth = 4; k.strokeStyle = '#ffffff'; k.stroke();
+      k.fillStyle = '#ffffff'; k.beginPath(); k.moveTo(32, 4); k.lineTo(34, 16); k.lineTo(23, 12); k.closePath(); k.fill();
+      line([[15, 25], [25, 15]], 3, '#f5c04a'); line([[13, 21], [19, 27]], 3, '#f5c04a');
+      break;
+    case 'jump':
+      k.beginPath(); k.moveTo(7, 32); k.quadraticCurveTo(20, -2, 32, 26); k.lineWidth = 4; k.strokeStyle = '#7ab4ff'; k.stroke();
+      k.fillStyle = '#7ab4ff'; k.beginPath(); k.moveTo(34, 34); k.lineTo(26, 26); k.lineTo(37, 22); k.closePath(); k.fill();
+      k.fillStyle = '#55684a'; k.fillRect(15, 24, 10, 12);
+      break;
+    case 'maze':
+      k.strokeStyle = '#f5c04a'; k.lineWidth = 2.5;
+      k.strokeRect(8, 8, 24, 24); k.strokeRect(14, 14, 12, 12);
+      k.fillStyle = '#151d30'; k.fillRect(18, 6, 5, 5); k.fillRect(26, 18, 5, 5);
+      break;
+    case 'skull':
+      circ(20, 17, 11, '#f5c04a'); k.fillRect(13, 24, 14, 8);
+      circ(15.5, 17, 3.5, '#151d30'); circ(24.5, 17, 3.5, '#151d30');
+      k.fillStyle = '#151d30'; k.fillRect(16, 28, 2, 4); k.fillRect(22, 28, 2, 4);
+      break;
+    case 'coin':
+      circ(20, 20, 12, '#c8901f'); circ(20, 20, 9.5, '#f5c04a'); circ(17, 16, 3, '#fff0b0');
+      break;
+    case 'bars':
+      k.fillStyle = '#f5c04a'; k.fillRect(8, 24, 6, 9); k.fillRect(17, 17, 6, 16); k.fillRect(26, 9, 6, 24);
+      break;
+    case 'hero': case 'face': {
+      const img = ((G && HEROES[G.hero]) || HERO).front[0].r;
+      if (kind === 'face') k.drawImage(img, 4, 2, 16, 16, 0, 3, 40, 40);
+      else k.drawImage(img, 0, 0, 24, 24, 0, 0, 40, 40);
+      break;
+    }
+  }
+}
+function paintAll(root) { root.querySelectorAll('canvas[data-ico]').forEach(c => paintIcon(c, c.dataset.ico, c.dataset.col)); }
+
+/* ---------- Arayüz ---------- */
+const H = {};
+['hpFill', 'hpTxt', 'lvTxt', 'xpFill', 'goldTxt', 'scoreTxt', 'floorTxt', 'monTxt', 'shiftTxt', 'shiftFill', 'potCnt', 'bJump', 'bShield', 'bSpin', 'bPotion'].forEach(id => H[id] = $(id));
+function setText(el, v) { if (el._v !== v) { el._v = v; el.textContent = v; } }
+function updateHud() {
+  if (!G || !G.tiles) return;
+  const mh = maxHp();
+  H.hpFill.style.width = (Math.max(0, G.hp / mh) * 100).toFixed(1) + '%';
+  setText(H.hpTxt, `${G.hp}/${mh}`);
+  setText(H.lvTxt, `${heroName()} · Lv. ${G.lvl}`);
+  H.xpFill.style.width = (G.xp / xpNeed(G.lvl) * 100).toFixed(1) + '%';
+  setText(H.goldTxt, String(G.gold));
+  setText(H.scoreTxt, String(G.score));
+  setText(H.floorTxt, `Kat ${G.floor} · ${themeFor(G.floor).name}`);
+  setText(H.monTxt, G.portal ? 'Geçide git' : `Canavar ${G.monsters.length}`);
+  const sh = G.shift;
+  if (sh.anim || sh.warn) { setText(H.shiftTxt, 'KAYIYOR!'); H.shiftTxt.className = 'warn'; }
+  else { setText(H.shiftTxt, `Kayma ${(Math.max(0, sh.timer) / 1000).toFixed(1)} sn`); H.shiftTxt.className = ''; }
+  H.shiftFill.style.width = (Math.max(0, sh.timer / sh.total) * 100).toFixed(1) + '%';
+  setText(H.potCnt, String(G.potions));
+  for (const s of SKILLS) {
+    const el = H['b' + s.id[0].toUpperCase() + s.id.slice(1)];
+    el.classList.toggle('locked', G.lvl < s.lvl);
+    el.style.setProperty('--cd', (G.p.cd[s.id] / skillCd(s.id)).toFixed(3));
+  }
+  H.bPotion.classList.toggle('locked', G.potions <= 0);
+}
+let toastT = 0;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1700);
+}
+const ov = $('overlay');
+function hideOverlay() { ov.hidden = true; ov.innerHTML = ''; }
+function openOverlay(html) { ov.hidden = false; ov.innerHTML = html; paintAll(ov); ov.scrollTop = 0; }
+
+function showTitle() {
+  setMusic('title'); duck(false);
+  const saved = loadRun();
+  openOverlay(`<div class="card">
+    <canvas id="lineup" class="px lineup" width="336" height="96"></canvas>
+    <h1 class="logo">Labirent:<br>Kayıp Hazineler</h1>
+    <div class="tagline">Hareket eden labirentlerde hayatta kal, güçlen, keşfet!</div>
+    <div class="feats">
+      <div class="feat"><canvas data-ico="maze" width="40" height="40"></canvas><div><b>Hareket Eden Labirentler</b><span>Mavi oklu sıra ya da sütun birkaç saniye içinde kayar. Üstündeki her şey onunla gider.</span></div></div>
+      <div class="feat"><canvas data-ico="skull" width="40" height="40"></canvas><div><b>Canavarlarla Savaş</b><span>Joystick ile yürü, saldırı düğmesiyle vur. Goblinler, iskeletler, yarasa sürüleri ve daha fazlası.</span></div></div>
+      <div class="feat"><canvas data-ico="coin" width="40" height="40"></canvas><div><b>Ekipman Sistemi</b><span>Altınlarla mağazadan silah, zırh, aksesuar ve iksir al.</span></div></div>
+      <div class="feat"><canvas data-ico="bars" width="40" height="40"></canvas><div><b>Seviye ve Gelişim</b><span>XP topla, seviye atla. Lv5'te Zıplama, Lv10'da Kalkan açılır.</span></div></div>
+    </div>
+    ${saved ? `<button class="btn" data-act="continue">Devam et · ${esc(cleanName(saved.name) || (CLASSES[saved.hero] || CLASSES.knight).name)}, Kat ${saved.floor}</button>
+      <button class="btn ghost" data-act="select">Yeni oyun</button>`
+      : `<button class="btn" data-act="select">Maceraya başla</button>`}
+    <div class="row">
+      <button class="btn ghost" data-act="scores" data-from="title">Rekorlar${best ? ` · ${best}` : ''}</button>
+      <button class="btn ghost" data-act="audio">Ses ayarları</button>
+    </div>
+    <div class="slogan">Kendi labirentine hükmet!</div>
+  </div>`);
+  paintLineup($('lineup'));
+}
+// Başlık ekranındaki karakter vitrini
+function paintLineup(cnv) {
+  if (!cnv) return;
+  const W = 336, Hh = 96, k = cnv.getContext('2d');
+  cnv.width = W * DPR; cnv.height = Hh * DPR;
+  k.setTransform(DPR, 0, 0, DPR, 0, 0); k.imageSmoothingEnabled = false;
+  const g = k.createRadialGradient(W / 2, Hh - 8, 10, W / 2, Hh - 8, W / 2);
+  g.addColorStop(0, 'rgba(245,192,74,.35)'); g.addColorStop(1, 'rgba(245,192,74,0)');
+  k.fillStyle = g; k.fillRect(0, 0, W, Hh);
+  const cast = [[SPR.bat.r, 4, 56, -34], [HEROES.barbarian.front[0].r, 20, 84], [HEROES.thief.front[0].r, 168, 84], [HEROES.mage.front[0].r, 232, 84], [HEROES.knight.front[0].r, 92, 92], [SPR.goblin.l, 284, 56]];
+  for (const [img, x, s, dy = 0] of cast) {
+    k.fillStyle = 'rgba(0,0,0,.4)';
+    k.beginPath(); k.ellipse(x + s / 2, Hh - 4, s * .32, 4, 0, 0, Math.PI * 2); k.fill();
+    k.drawImage(img, x, Hh - s + dy, s, s);
+  }
+}
+/* ---------- Rekor tablosu ---------- */
+let scoresFrom = 'title', resetArmed = false;
+function showScores() {
+  const list = loadScores(), mine = G && G.state === 'over' ? G.lastT : null;
+  const date = t => t ? new Date(t).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : '';
+  const rows = list.map((e, i) => {
+    const C = CLASSES[e.hero] || CLASSES.knight;
+    const sub = [C.name, e.lvl ? `Lv. ${e.lvl}` : '', date(e.t)].filter(Boolean).join(' · ');
+    return `<div class="srow ${e.t && e.t === mine ? 'me' : ''}">
+      <span class="srank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
+      <canvas data-face="${CLASSES[e.hero] ? e.hero : 'knight'}" width="36" height="36"></canvas>
+      <div class="sname"><b>${esc(e.name || C.name)}</b><span>${sub}</span></div>
+      <span class="sfloor">${e.floor ? 'Kat ' + e.floor : ''}</span>
+      <span class="sscore">${e.score}</span>
+    </div>`;
+  }).join('');
+  openOverlay(`<div class="card">
+    <h2>Rekor tablosu</h2>
+    <p>Bu cihazda oynanan en iyi ${TOP_N} oyun.</p>
+    ${list.length ? `<div class="shead"><span>#</span><span></span><span>KAHRAMAN</span><span>KAT</span><span>PUAN</span></div>
+      <div class="scores">${rows}</div>`
+      : '<p class="empty">Henüz rekor yok. İlk maceranı bitir, adın burada görünsün.</p>'}
+    <button class="btn" data-act="scoresback">Geri</button>
+    ${list.length ? '<button class="btn ghost" data-act="resetscores">Tabloyu sıfırla</button>' : ''}
+  </div>`);
+  ov.querySelectorAll('canvas[data-face]').forEach(cv2 => {
+    const k = cv2.getContext('2d'), sz = 36;
+    cv2.width = cv2.height = sz * DPR; k.setTransform(DPR, 0, 0, DPR, 0, 0); k.imageSmoothingEnabled = false;
+    k.drawImage(HEROES[cv2.dataset.face].front[0].r, 4, 1, 16, 16, 2, 2, 32, 32);
+  });
+}
+
+/* ---------- Karakter seçimi ---------- */
+let pickHero = 'knight', pickName = pick(NAMES);
+function showSelect() {
+  const C = CLASSES[pickHero], ids = Object.keys(CLASSES);
+  const mx = k => Math.max(...ids.map(i => CLASSES[i][k]));
+  const bar = (label, v, max, txt) => `<div><span>${label}</span><div class="sbar"><i style="width:${Math.max(6, v / max * 100).toFixed(0)}%"></i></div><b>${txt}</b></div>`;
+  openOverlay(`<div class="card">
+    <h2>Karakterini seç</h2>
+    <div class="namebox">
+      <label for="heroName">Kahramanının adı</label>
+      <div class="namerow">
+        <input id="heroName" type="text" maxlength="14" autocomplete="off" spellcheck="false" enterkeyhint="go" value="${esc(pickName)}" placeholder="${C.name}">
+        <button class="btn ghost" data-act="randname">Rastgele</button>
+      </div>
+    </div>
+    <div class="heroes" role="radiogroup">${ids.map(id => `<button class="hero" data-hero="${id}" role="radio" aria-checked="${id === pickHero}">
+      <canvas data-hcv="${id}" class="px" width="64" height="64"></canvas><b>${CLASSES[id].name}</b><span>${CLASSES[id].role}</span></button>`).join('')}
+    </div>
+    <div class="hdetail">
+      <canvas id="heroPreview" class="px" width="112" height="112"></canvas>
+      <div>
+        <h3>${C.name}</h3>
+        <p>${C.perk}</p>
+        <p class="weap">Silah: ${WEAPON_NAMES[C.weapon][0]}</p>
+      </div>
+    </div>
+    <div class="sbars">
+      ${bar('Can', C.hp, mx('hp'), C.hp)}
+      ${bar('Saldırı', C.atk, mx('atk'), C.atk)}
+      ${bar('Savunma', C.def, Math.max(4, mx('def')), C.def)}
+      ${bar('Hız', C.speed, mx('speed'), C.speed)}
+      ${bar('Kritik', C.crit, mx('crit'), '%' + C.crit)}
+    </div>
+    <button class="btn" data-act="pick">${esc(cleanName(pickName) || C.name)} ile başla</button>
+    <button class="btn ghost" data-act="title">Geri</button>
+  </div>`);
+  ov.querySelectorAll('canvas[data-hcv]').forEach(cv2 => {
+    const k = cv2.getContext('2d'), sz = 64;
+    cv2.width = cv2.height = sz * DPR; k.setTransform(DPR, 0, 0, DPR, 0, 0); k.imageSmoothingEnabled = false;
+    k.drawImage(HEROES[cv2.dataset.hcv].front[0].r, 4, 4, 56, 56);
+  });
+  animatePreview(performance.now(), true);
+}
+// Seçili kahraman önizlemede yürür ve silahını sallar
+let lastPrev = -1;
+function animatePreview(now, force) {
+  const cv2 = document.getElementById('heroPreview');
+  if (!cv2) return;
+  const f = Math.floor(now / 140) % 8;
+  if (f === lastPrev && !force) return;
+  lastPrev = f;
+  const k = cv2.getContext('2d'), sz = 112, C = CLASSES[pickHero];
+  if (cv2.width !== sz * DPR) { cv2.width = cv2.height = sz * DPR; }
+  k.setTransform(DPR, 0, 0, DPR, 0, 0); k.imageSmoothingEnabled = false;
+  k.clearRect(0, 0, sz, sz);
+  const s = 96, left = 8, top = 10, u = s / SZ;
+  k.fillStyle = 'rgba(0,0,0,.4)'; k.beginPath(); k.ellipse(56, 104, 30, 6, 0, 0, Math.PI * 2); k.fill();
+  const slash = f >= 6 ? 1 - (f - 6) / 2 : 0;
+  const color = C.weapon === 'staff' ? STAFF_ORBS[0] : WEAPONS[0].color;
+  k.drawImage(HEROES[pickHero].front[[0, 1, 0, 2][f % 4]].r, left, top, s, s);
+  drawWeapon(k, left + 16.5 * u, top + 17.5 * u, 1, { slash }, 60, C.weapon, color);
+}
+function charHtml() {
+  const need = xpNeed(G.lvl);
+  return `<div class="charhead">
+      <canvas data-ico="hero" width="96" height="96" class="px"></canvas>
+      <div>
+        <h3>${esc(heroName())}</h3>
+        <p style="color:var(--fg)">${cls().name} · Seviye ${G.lvl}</p>
+        <div class="xpbig"><i style="width:${(G.xp / need * 100).toFixed(1)}%"></i><em>${G.xp} / ${need}</em></div>
+        <p style="margin-top:6px">${weaponName(G.weapon)} · ${ARMORS[G.armor].name}</p>
+        <p style="margin-top:4px;color:var(--gold)">${cls().perk}</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div><canvas data-ico="heart" width="20" height="20"></canvas><span>Can (HP)</span><b>${G.hp} / ${maxHp()}</b></div>
+      <div><canvas data-ico="sword" width="20" height="20"></canvas><span>Saldırı Gücü</span><b>${atkPow()}</b></div>
+      <div><canvas data-ico="shield" width="20" height="20"></canvas><span>Savunma</span><b>${defPow()}</b></div>
+      <div><canvas data-ico="star" width="20" height="20"></canvas><span>Kritik Şansı</span><b>%${critPct()}</b></div>
+      <div><canvas data-ico="wind" width="20" height="20"></canvas><span>Hareket Hızı</span><b>${speedStat()}</b></div>
+    </div>
+    <h3>Yetenekler</h3>
+    <div class="skills">${SKILLS.map(s => `<div class="skill ${G.lvl < s.lvl ? 'locked' : ''}">
+      <canvas data-ico="${s.id}" width="40" height="40"></canvas><b>${s.name}</b><span>${s.lvl === 1 ? 'Temel' : 'Seviye ' + s.lvl}</span></div>`).join('')}
+    </div>`;
+}
+function showPause() {
+  if (!G || G.state !== 'play') return;
+  G.state = 'pause'; duck(true);
+  input.held = 0; input.queued = 0;
+  openOverlay(`<div class="card">
+    <h2>Karakter</h2>
+    ${charHtml()}
+    <h3>Ses</h3>
+    ${audioHtml()}
+    <button class="btn" data-act="resume">Devam et</button>
+    <button class="btn ghost" data-act="menu">Ana menü (ilerleme kayıtlı)</button>
+  </div>`);
+}
+const TABS = [
+  { id: 'weapon', name: 'Silah', ico: 'sword' },
+  { id: 'armor', name: 'Zırh', ico: 'armor' },
+  { id: 'acc', name: 'Aksesuar', ico: 'ring' },
+  { id: 'potion', name: 'İksir', ico: 'potion' },
+];
+function shopRows() {
+  const tab = G.shopTab;
+  const row = (ico, col, name, desc, cost, state, key) => `<div class="item">
+    <canvas data-ico="${ico}" ${col ? `data-col="${col}"` : ''} width="50" height="50"></canvas>
+    <div class="t"><b>${name}</b><span>${desc}</span></div>
+    <div class="buycol">
+      ${state === 'own' || state === 'eq' ? '' : `<div class="price"><span class="coin"></span>${cost}</div>`}
+      <button class="buy ${state === 'own' || state === 'eq' ? 'own' : ''}" data-buy="${key}" ${state === 'buy' ? '' : 'disabled'}>${state === 'eq' ? 'Kuşanıldı' : state === 'own' ? 'Sahipsin' : state === 'full' ? 'Dolu' : 'Satın Al'}</button>
+    </div></div>`;
+  if (tab === 'weapon') return WEAPONS.map((w, i) => i === 0 ? '' : row(cls().weapon, cls().weapon === 'staff' ? STAFF_ORBS[i] : w.color, weaponName(i), `+${w.atk} Saldırı Gücü`, w.cost,
+    G.weapon === i ? 'eq' : G.weapon > i ? 'own' : G.gold >= w.cost ? 'buy' : 'no', 'weapon:' + i)).join('');
+  if (tab === 'armor') return ARMORS.map((a, i) => i === 0 ? '' : row('armor', a.color, a.name, `+${a.def} Savunma`, a.cost,
+    G.armor === i ? 'eq' : G.armor > i ? 'own' : G.gold >= a.cost ? 'buy' : 'no', 'armor:' + i)).join('');
+  if (tab === 'acc') return ACCS.map(a => row(a.id, null, a.name, a.desc, a.cost,
+    G.acc[a.id] ? 'eq' : G.gold >= a.cost ? 'buy' : 'no', 'acc:' + a.id)).join('');
+  return row('potion', null, POTION.name, `+${POTION.heal} HP · çantada ${G.potions}/${POTION.max}`, POTION.cost,
+    G.potions >= POTION.max ? 'full' : G.gold >= POTION.cost ? 'buy' : 'no', 'potion');
+}
+function showShop() {
+  setMusic('shop');
+  const keep = ov.hidden ? 0 : ov.scrollTop;
+  openOverlay(`<div class="card">
+    <p>Kat ${G.floor} temizlendi · +${G.lastBonus} puan · canının %20'si yenilendi</p>
+    <div class="shophead"><h2>Mağaza</h2><div class="goldchip"><span class="coin"></span>${G.gold}</div></div>
+    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" data-tab="${t.id}" aria-selected="${G.shopTab === t.id}"><canvas data-ico="${t.id === 'weapon' ? cls().weapon : t.ico}" width="26" height="26"></canvas>${t.name}</button>`).join('')}</div>
+    <div class="items">${shopRows()}</div>
+    <div class="kv">
+      <div>HP<b>${G.hp}/${maxHp()}</b></div><div>Saldırı<b>${atkPow()}</b></div>
+      <div>Savunma<b>${defPow()}</b></div><div>Kritik<b>%${critPct()}</b></div>
+    </div>
+    <button class="btn" data-act="next">Kat ${G.floor + 1}'e in</button>
+    <button class="btn ghost" data-act="char">Karakter</button>
+  </div>`);
+  ov.scrollTop = keep;
+}
+function buy(key) {
+  const [kind, val] = key.split(':');
+  let cost = 0;
+  if (kind === 'weapon') { cost = WEAPONS[+val].cost; if (G.gold < cost || G.weapon >= +val) return; G.weapon = +val; }
+  else if (kind === 'armor') { cost = ARMORS[+val].cost; if (G.gold < cost || G.armor >= +val) return; G.armor = +val; }
+  else if (kind === 'acc') {
+    const a = ACCS.find(x => x.id === val); cost = a.cost;
+    if (G.gold < cost || G.acc[val]) return;
+    G.acc[val] = true;
+    if (val === 'neck') G.hp += 30;
+  } else { cost = POTION.cost; if (G.gold < cost || G.potions >= POTION.max) return; G.potions++; }
+  G.gold -= cost;
+  sfx('buy');
+  saveRun();
+  showShop();
+}
+function showOver() {
+  const rank = G.lastRank;
+  openOverlay(`<div class="card">
+    <h2 style="color:var(--hp)">Labirent seni yuttu</h2>
+    <p>${esc(heroName())}, Kat ${G.floor}'de düştü. ${G.kills} canavar avladı, Lv. ${G.lvl}'e ulaştı.</p>
+    <div class="kv">
+      <div>Puan<b>${G.score}</b></div><div>En iyi<b>${best}</b></div>
+      <div>Kat<b>${G.floor}</b></div><div>Av<b>${G.kills}</b></div>
+    </div>
+    ${rank === 0 ? '<p class="rankmsg">Yeni rekor! Tablonun zirvesindesin.</p>'
+      : rank > 0 ? `<p class="rankmsg">Rekor tablosunda ${rank + 1}. sıraya girdin!</p>` : ''}
+    <button class="btn" data-act="select">Yeniden başla</button>
+    <div class="row">
+      <button class="btn ghost" data-act="scores" data-from="over">Rekor tablosu</button>
+      <button class="btn ghost" data-act="menu">Ana menü</button>
+    </div>
+  </div>`);
+}
+function toMenu() {
+  if (G && (G.state === 'pause' || G.state === 'play')) saveRun();
+  if (G) G.state = 'title';
+  showTitle();
+}
+ov.addEventListener('input', e => {
+  if (e.target.id === 'volMusic' || e.target.id === 'volSfx') {
+    const v = +e.target.value / 100;
+    AUDIO[e.target.id === 'volMusic' ? 'music' : 'sfx'] = v;
+    $(e.target.id + 'Txt').textContent = '%' + Math.round(v * 100);
+    initAudio(); applyVolumes(); saveAudio();
+    return;
+  }
+  if (e.target.id !== 'heroName') return;
+  pickName = e.target.value;
+  const btn = ov.querySelector('[data-act="pick"]');
+  if (btn) btn.textContent = `${cleanName(pickName) || CLASSES[pickHero].name} ile başla`;
+});
+ov.addEventListener('change', e => { if (e.target.id === 'volSfx') sfx('coin'); });
+ov.addEventListener('keydown', e => {
+  if (e.target.id === 'heroName' && e.key === 'Enter') { e.preventDefault(); ov.querySelector('[data-act="pick"]').click(); }
+});
+ov.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  initAudio();
+  if (b.dataset.buy) return buy(b.dataset.buy);
+  if (b.dataset.hero) { pickHero = b.dataset.hero; sfx('tap'); return showSelect(); }
+  if (b.dataset.tab) { G.shopTab = b.dataset.tab; sfx('tap'); return showShop(); }
+  const a = b.dataset.act;
+  if (a === 'select') showSelect();
+  else if (a === 'pick') {
+    // Önce klavyeyi kapat: labirent ekranın tam boyuna göre kurulsun
+    const run = { hero: pickHero, name: cleanName(pickName) || CLASSES[pickHero].name };
+    b.disabled = true;
+    if (document.activeElement) document.activeElement.blur();
+    setTimeout(() => { resize(); clearRun(); newRun(run); }, 400);
+  }
+  else if (a === 'randname') { pickName = pick(NAMES.filter(n => n !== pickName)); sfx('tap'); showSelect(); }
+  else if (a === 'title') showTitle();
+  else if (a === 'scores') { scoresFrom = b.dataset.from || 'title'; resetArmed = false; showScores(); }
+  else if (a === 'scoresback') { if (scoresFrom === 'over' && G && G.state === 'over') showOver(); else showTitle(); }
+  else if (a === 'resetscores') {
+    if (!resetArmed) { resetArmed = true; b.textContent = 'Emin misin? Silmek için tekrar dokun'; b.classList.add('danger'); return; }
+    saveScores([]); try { localStorage.removeItem('kayip_best'); localStorage.removeItem('kayip_best_name'); } catch (e) {}
+    syncBest(); resetArmed = false; showScores();
+  }
+  else if (a === 'continue') newRun(loadRun());
+  else if (a === 'next') { G.floor++; startLevel(); }
+  else if (a === 'resume') { G.state = 'play'; duck(false); hideOverlay(); }
+  else if (a === 'menu') toMenu();
+  else if (a === 'char') openOverlay(`<div class="card"><h2>Karakter</h2>${charHtml()}<button class="btn" data-act="shop">Mağazaya dön</button></div>`);
+  else if (a === 'shop') showShop();
+  else if (a === 'audio') openOverlay(`<div class="card"><h2>Ses ayarları</h2>${audioHtml()}<button class="btn" data-act="title">Geri</button></div>`);
+});
+$('btnPause').addEventListener('click', showPause);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { showPause(); suspendAudio(); } else resumeAudio();
+});
+
+/* ---------- Girdi ---------- */
+const joy = $('joy'), knob = $('knob');
+let joyId = null;
+function joyMove(e) {
+  const r = joy.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const len = Math.hypot(dx, dy), max = r.width * .3;
+  if (len > max) { dx *= max / len; dy *= max / len; }
+  knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  if (len < 12) { input.held = 0; return; }
+  const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? E : W) : (dy > 0 ? S : N);
+  if (d !== input.held) { input.held = d; input.queued = d; }
+}
+joy.addEventListener('pointerdown', e => {
+  e.preventDefault(); initAudio();
+  joyId = e.pointerId; joy.setPointerCapture?.(e.pointerId); joyMove(e);
+});
+joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) joyMove(e); });
+const joyEnd = e => { if (e.pointerId !== joyId) return; joyId = null; input.held = 0; knob.style.transform = ''; };
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => joy.addEventListener(t, joyEnd));
+
+const press = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); fn(); });
+press('bAtk', attack);
+press('bSpin', () => useSkill('spin'));
+press('bJump', () => useSkill('jump'));
+press('bShield', () => useSkill('shield'));
+press('bPotion', drinkPotion);
+
+let sw = null;
+cv.addEventListener('pointerdown', e => { initAudio(); sw = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener('pointerup', e => {
+  if (!sw || !G || G.state !== 'play') { sw = null; return; }
+  let dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+  if (Math.hypot(dx, dy) < 18) {
+    // Dokunma: oyuncuya göre dokunulan yöne bir adım
+    const r = cv.getBoundingClientRect(), { c, ox, oy } = layout();
+    dx = e.clientX - r.left - (ox + (G.p.x + .5) * c);
+    dy = e.clientY - r.top - (oy + (G.p.y + .5) * c);
+    if (Math.hypot(dx, dy) < c * .4) { sw = null; attack(); return; }
+  }
+  input.queued = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? E : W) : (dy > 0 ? S : N);
+  sw = null;
+});
+
+const KEYS = { ArrowUp: N, KeyW: N, ArrowRight: E, KeyD: E, ArrowDown: S, KeyS: S, ArrowLeft: W, KeyA: W };
+const typing = e => e.target && e.target.tagName === 'INPUT';
+addEventListener('keydown', e => {
+  if (typing(e)) return;
+  initAudio();
+  if (KEYS[e.code]) {
+    e.preventDefault();
+    if (!e.repeat) { input.keys = input.keys.filter(k => k !== KEYS[e.code]); input.keys.push(KEYS[e.code]); input.queued = KEYS[e.code]; }
+    input.held = input.keys[input.keys.length - 1];
+  } else if (e.code === 'Space' || e.code === 'KeyJ') { e.preventDefault(); attack(); }
+  else if (e.code === 'KeyQ') useSkill('spin');
+  else if (e.code === 'KeyE') useSkill('jump');
+  else if (e.code === 'KeyR') useSkill('shield');
+  else if (e.code === 'KeyF') drinkPotion();
+  else if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (G && G.state === 'pause') { G.state = 'play'; duck(false); hideOverlay(); } else showPause();
+  }
+});
+addEventListener('keyup', e => {
+  if (typing(e)) return;
+  if (KEYS[e.code]) {
+    input.keys = input.keys.filter(k => k !== KEYS[e.code]);
+    input.held = input.keys[input.keys.length - 1] || 0;
+  }
+});
+addEventListener('blur', () => { input.keys = []; input.held = 0; });
+
+/* ---------- Ses ---------- */
+// Tüm müzik ve efektler WebAudio ile anında üretilir; ses dosyası yoktur.
+let AC = null, master, musicBus, sfxBus, revSend, noiseBuf, ducked = false;
+const AUDIO = (() => {
+  const d = { music: .6, sfx: .8 };
+  try { return Object.assign(d, JSON.parse(localStorage.getItem('kayip_audio')) || {}); } catch (e) { return d; }
+})();
+function saveAudio() { try { localStorage.setItem('kayip_audio', JSON.stringify(AUDIO)); } catch (e) {} }
+function initAudio() {
+  if (AC) { if (AC.state === 'suspended' && !document.hidden) AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; return; }
+  master = AC.createGain(); master.gain.value = .9;
+  const comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.ratio.value = 4;
+  master.connect(comp).connect(AC.destination);
+  musicBus = AC.createGain(); sfxBus = AC.createGain();
+  musicBus.connect(master); sfxBus.connect(master);
+  // Zindan yankısı: sönümlenen gürültüden üretilmiş bir oda tepkisi
+  const rev = AC.createConvolver(), len = Math.floor(AC.sampleRate * 2.2), ir = AC.createBuffer(2, len, AC.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  rev.buffer = ir;
+  revSend = AC.createGain(); revSend.gain.value = .3;
+  revSend.connect(rev).connect(master);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  applyVolumes();
+  startScheduler();
+}
+function applyVolumes() {
+  if (!AC) return;
+  musicBus.gain.setTargetAtTime(AUDIO.music * .34 * (ducked ? .4 : 1), AC.currentTime, .15);
+  sfxBus.gain.setTargetAtTime(AUDIO.sfx * .9, AC.currentTime, .05);
+}
+function duck(on) { ducked = on; applyVolumes(); }
+function suspendAudio() { if (AC && AC.state === 'running') AC.suspend(); }
+function resumeAudio() { if (AC && AC.state === 'suspended') AC.resume(); }
+
+// Tek nota: osilatör + zarf; isteğe bağlı filtre, perde kayması ve yankı
+function tone(o) {
+  const t0 = o.at != null ? o.at : AC.currentTime + (o.t || 0), d = o.d || .1, a = o.a || .005;
+  const osc = AC.createOscillator(), g = AC.createGain();
+  osc.type = o.type || 'sine';
+  osc.frequency.setValueAtTime(o.f, t0);
+  if (o.f2) osc.frequency.exponentialRampToValueAtTime(o.f2, t0 + (o.glide || d));
+  if (o.detune) osc.detune.value = o.detune;
+  g.gain.setValueAtTime(.0001, t0);
+  g.gain.exponentialRampToValueAtTime(o.v || .1, t0 + a);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  let node = osc;
+  if (o.filter) {
+    const fl = AC.createBiquadFilter();
+    fl.type = o.filter[0]; fl.frequency.value = o.filter[1]; fl.Q.value = o.filter[2] || 1;
+    node.connect(fl); node = fl;
+  }
+  node.connect(g); g.connect(o.bus || sfxBus);
+  if (o.rev) { const s = AC.createGain(); s.gain.value = o.rev; g.connect(s); s.connect(revSend); }
+  osc.start(t0); osc.stop(t0 + d + .05);
+}
+// Filtrelenmiş gürültü: savurma, darbe, gümbürtü, zil
+function noise(o) {
+  const t0 = o.at != null ? o.at : AC.currentTime + (o.t || 0), d = o.d || .1, f = o.filter || ['lowpass', 3000];
+  const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+  const fl = AC.createBiquadFilter();
+  fl.type = f[0]; fl.frequency.setValueAtTime(f[1], t0); fl.Q.value = f[2] || 1;
+  if (o.f2) fl.frequency.exponentialRampToValueAtTime(o.f2, t0 + d);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(.0001, t0);
+  g.gain.exponentialRampToValueAtTime(o.v || .1, t0 + (o.a || .005));
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  src.connect(fl).connect(g).connect(o.bus || sfxBus);
+  if (o.rev) { const s = AC.createGain(); s.gain.value = o.rev; g.connect(s); s.connect(revSend); }
+  src.start(t0, Math.random() * .5); src.stop(t0 + d + .05);
+}
+const semi = (f, s) => f * Math.pow(2, s / 12);
+const SFX = {
+  swing: () => noise({ d: .15, v: .22, filter: ['bandpass', 800, 1.4], f2: 3600, a: .03 }),
+  spin: () => { noise({ d: .34, v: .28, filter: ['bandpass', 500, 1.6], f2: 4200, a: .06 }); noise({ t: .12, d: .25, v: .16, filter: ['bandpass', 900, 1.6], f2: 3000, a: .04 }); },
+  hit: () => { tone({ f: 190, f2: 55, d: .15, v: .5 }); noise({ d: .05, v: .28, filter: ['highpass', 1800] }); },
+  crit: () => { tone({ f: 1318, type: 'triangle', d: .4, v: .16, rev: .6 }); tone({ f: 1975, d: .32, v: .09, t: .03, rev: .6 }); },
+  kill: () => {
+    tone({ f: 520, f2: 130, type: 'square', d: .2, v: .1, filter: ['lowpass', 1800] });
+    noise({ t: .03, d: .32, v: .24, filter: ['lowpass', 1400], f2: 180, rev: .35 });
+  },
+  coin: () => { tone({ f: 988, type: 'square', d: .07, v: .07, filter: ['lowpass', 4500] }); tone({ f: 1319, type: 'square', d: .2, v: .07, t: .06, filter: ['lowpass', 4500], rev: .3 }); },
+  chest: () => [0, 4, 7, 12, 16, 19].forEach((s, i) => tone({ f: semi(523, s), type: 'triangle', d: .4, v: .11, t: i * .055, rev: .6 })),
+  hurt: () => { tone({ f: 150, f2: 65, type: 'sawtooth', d: .22, v: .18, filter: ['lowpass', 900] }); noise({ d: .12, v: .24, filter: ['bandpass', 600, .8] }); },
+  block: () => { tone({ f: 1760, type: 'triangle', d: .3, v: .11, rev: .6 }); tone({ f: 2349, d: .22, v: .07, rev: .6 }); },
+  step: () => noise({ d: .045, v: .05, filter: ['lowpass', 450 + Math.random() * 350] }),
+  rumble: () => { noise({ d: 1.7, v: .2, filter: ['lowpass', 170], a: .6 }); tone({ f: 49, d: 1.7, v: .16, a: .6 }); },
+  shift: () => { noise({ d: .7, v: .34, filter: ['lowpass', 420], f2: 110, rev: .45 }); tone({ f: 72, f2: 38, type: 'triangle', d: .55, v: .32 }); },
+  portal: () => [0, 7, 12, 19, 24].forEach((s, i) => tone({ f: semi(392, s), d: .7, v: .09, t: i * .08, rev: .9 })),
+  level: () => {
+    [0, 4, 7, 12].forEach((s, i) => tone({ f: semi(523, s), type: 'square', d: .22, v: .07, t: i * .1, filter: ['lowpass', 3200], rev: .4 }));
+    tone({ f: 1047, type: 'triangle', d: .8, v: .12, t: .4, rev: .7 });
+    tone({ f: 1319, type: 'triangle', d: .8, v: .08, t: .4, rev: .7 });
+  },
+  buy: () => { tone({ f: 1568, type: 'square', d: .08, v: .06, filter: ['lowpass', 5000] }); tone({ f: 2093, type: 'square', d: .22, v: .06, t: .07, filter: ['lowpass', 5000], rev: .35 }); },
+  potion: () => { for (let i = 0; i < 6; i++) tone({ f: 380 + i * 110 + Math.random() * 60, f2: 650 + i * 140, d: .08, v: .09, t: i * .05 }); },
+  shield: () => [0, 4, 7, 12].forEach(s => tone({ f: semi(659, s), type: 'triangle', d: 1.1, v: .06, a: .06, rev: .9 })),
+  jump: () => tone({ f: 250, f2: 760, type: 'square', d: .22, v: .07, filter: ['lowpass', 2200] }),
+  bolt: () => { tone({ f: 1500, f2: 280, type: 'sawtooth', d: .24, v: .07, filter: ['lowpass', 3200], rev: .55 }); noise({ d: .16, v: .1, filter: ['highpass', 3200] }); },
+  gameover: () => [12, 7, 3, 0, -5].forEach((s, i) => tone({ f: semi(220, s), type: 'triangle', d: .7, v: .13, t: i * .24, rev: .8 })),
+  tap: () => tone({ f: 880, type: 'square', d: .035, v: .035, filter: ['lowpass', 3000] }),
+  swish: () => noise({ d: .08, v: .05, filter: ['highpass', 4000] }),
+};
+function sfx(k) {
+  if (!AC || AUDIO.sfx <= 0 || !SFX[k] || AC.state !== 'running') return;
+  try { SFX[k](); } catch (e) {}
+}
+
+/* ---------- Müzik ---------- */
+// Her parça: tempo, kök nota (MIDI), dizi, akor yürüyüşü ve davul yoğunluğu.
+const SCALES = {
+  minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], phrygian: [0, 1, 3, 5, 7, 8, 10],
+  harmonic: [0, 2, 3, 5, 7, 8, 11], major: [0, 2, 4, 5, 7, 9, 11],
+};
+const SONGS = {
+  title:  { bpm: 74,  root: 57, scale: 'minor',    prog: [0, 5, 3, 6], drums: 0, lead: 'triangle', arp: 'sine',     bright: 1100, seed: 11 },
+  kolay:  { bpm: 96,  root: 57, scale: 'dorian',   prog: [0, 3, 6, 4], drums: 1, lead: 'square',   arp: 'triangle', bright: 1600, seed: 21 },
+  orta:   { bpm: 104, root: 50, scale: 'minor',    prog: [0, 5, 6, 4], drums: 1, lead: 'triangle', arp: 'square',   bright: 1400, seed: 33 },
+  zor:    { bpm: 116, root: 52, scale: 'phrygian', prog: [0, 1, 0, 6], drums: 2, lead: 'sawtooth', arp: 'square',   bright: 1200, seed: 45 },
+  efsane: { bpm: 108, root: 49, scale: 'harmonic', prog: [0, 5, 3, 4], drums: 2, lead: 'triangle', arp: 'sawtooth', bright: 1300, seed: 57 },
+  boss:   { bpm: 134, root: 45, scale: 'harmonic', prog: [0, 0, 5, 4], drums: 3, lead: 'sawtooth', arp: 'square',   bright: 1700, seed: 69 },
+  shop:   { bpm: 84,  root: 60, scale: 'major',    prog: [0, 5, 3, 4], drums: 0, lead: 'triangle', arp: 'sine',     bright: 2000, seed: 81 },
+};
+const midiF = n => 440 * Math.pow(2, (n - 69) / 12);
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// Ezgi tohuma göre bir kez üretilir; 3. ölçü 1. ölçünün motifini yeni akora taşır
+function buildSong(cfg) {
+  const S = Object.assign({}, cfg), r = rng(cfg.seed), sc = SCALES[cfg.scale];
+  const rp = arr => arr[Math.floor(r() * arr.length)];
+  S.note = deg => S.root + sc[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7);
+  const bars = cfg.prog.length, mel = Array(bars * 16).fill(null);
+  const rhythm = [0, 3, 6, 8, 10, 12, 14];
+  const motif = [];
+  for (let b = 0; b < bars; b++) {
+    const ch = cfg.prog[b];
+    let cur = ch + rp([0, 2, 4]);
+    for (const st of rhythm) {
+      if (b === 2 && motif.length) { const m = motif.find(x => x.st === st); if (m) mel[b * 16 + st] = m.rel + ch; continue; }
+      if (r() < (st === 0 ? .95 : .55)) {
+        cur += r() < .6 ? rp([-1, 1]) : rp([-2, 2, 0]);
+        if (st % 8 === 0) cur = ch + rp([0, 2, 4]);
+        cur = Math.max(ch - 3, Math.min(ch + 7, cur));
+        mel[b * 16 + st] = cur;
+        if (b === 0) motif.push({ st, rel: cur - ch });
+      }
+    }
+  }
+  S.mel = mel;
+  return S;
+}
+let song = null, songName = '', step = 0, nextT = 0, schedTimer = null;
+function setMusic(name) {
+  if (name === songName) return;
+  songName = name;
+  song = name ? buildSong(SONGS[name]) : null;
+  step = 0;
+  if (AC) nextT = AC.currentTime + .12;
+}
+function startScheduler() {
+  if (schedTimer) return;
+  nextT = AC.currentTime + .12;
+  schedTimer = setInterval(() => {
+    if (!AC || !song || AC.state !== 'running' || AUDIO.music <= 0) return;
+    if (nextT < AC.currentTime - .25) nextT = AC.currentTime + .05;
+    while (nextT < AC.currentTime + .16) {
+      playStep(step, nextT);
+      nextT += 60 / song.bpm / 4;
+      step = (step + 1) % (16 * song.prog.length);
+    }
+  }, 25);
+}
+function playStep(s, t) {
+  const S = song, bar = Math.floor(s / 16), st = s % 16, ch = S.prog[bar], six = 60 / S.bpm / 4, bus = musicBus;
+  if (st === 0) {
+    // Yumuşak akor dolgusu
+    for (const [i, dt] of [[0, -7], [2, 5], [4, -3]]) tone({ at: t, f: midiF(S.note(ch + i) + 12), type: 'sawtooth', d: six * 16, a: six * 4, v: .028, detune: dt, filter: ['lowpass', S.bright * .6], bus, rev: .5 });
+  }
+  if (st === 0 || st === 8 || (S.drums >= 2 && (st === 6 || st === 14)))
+    tone({ at: t, f: midiF(S.note(ch) - 12), type: 'triangle', d: six * (st % 8 ? 2 : 6), v: .24, bus });
+  const arpEvery = S.drums >= 2 ? 1 : 2;
+  if (st % arpEvery === 0) {
+    const pat = [0, 2, 4, 7, 4, 2, 0, 4][(st / arpEvery) % 8];
+    tone({ at: t, f: midiF(S.note(ch + pat) + 12), type: S.arp, d: six * 1.6, v: .035, filter: ['lowpass', S.bright], bus, rev: .3 });
+  }
+  const m = S.mel[s];
+  if (m != null) tone({ at: t, f: midiF(S.note(m) + 24), type: S.lead, d: six * 2.8, a: .01, v: S.lead === 'sawtooth' || S.lead === 'square' ? .04 : .07, filter: ['lowpass', S.bright * 1.6], bus, rev: .45 });
+  if (S.drums >= 1) {
+    if (st === 0 || st === 8 || (S.drums >= 3 && (st === 6 || st === 10)))
+      tone({ at: t, f: 125, f2: 42, d: .2, v: .34, bus });
+    if (st % 4 === 2 || (S.drums >= 3 && st % 2 === 1)) noise({ at: t, d: .04, v: .045, filter: ['highpass', 7000], bus });
+    if (S.drums >= 2 && (st === 4 || st === 12)) noise({ at: t, d: .14, v: .1, filter: ['bandpass', 1700, .7], bus, rev: .3 });
+  }
+}
+const musicFor = F => F % 5 === 0 ? 'boss' : ['kolay', 'orta', 'zor', 'efsane'][THEMES.indexOf(themeFor(F))];
+function audioHtml() {
+  const row = (id, label, v) => `<label for="${id}">${label}</label><input id="${id}" type="range" min="0" max="100" step="5" value="${Math.round(v * 100)}"><b id="${id}Txt">%${Math.round(v * 100)}</b>`;
+  return `<div class="vol">${row('volMusic', 'Müzik', AUDIO.music)}${row('volSfx', 'Efektler', AUDIO.sfx)}</div>`;
+}
+
+/* ---------- Döngü ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(50, now - last); last = now;
+  if (G) update(dt);
+  render(now);
+  updateHud();
+  animatePreview(now);
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', resize);
+new ResizeObserver(resize).observe($('stage'));
+
+function start(data) {
+  resize();
+  paintAll(document);
+  paintIcon($('portrait'), 'face');
+  if (data && data.floor && data.acc) newRun(data);
+  else {
+    // Başlık ekranının arkasında örnek bir kat görünsün
+    G = freshRun();
+    startLevel(true);
+    G.state = 'title';
+    showTitle();
+  }
+  requestAnimationFrame(frame);
+}
+// Android uygulaması geri tuşu ve arka plana geçişte bunları çağırır
+window.kayanPause = () => { showPause(); suspendAudio(); };
+window.kayanResume = resumeAudio;
+window.kayanBack = () => {
+  if (!G) return false;
+  if (G.state === 'play') { showPause(); return true; }
+  if (G.state === 'pause') { G.state = 'play'; duck(false); hideOverlay(); return true; }
+  return G.state === 'shop';
+};
+window.claude?.hot?.snapshot?.(() => G && (G.state === 'play' || G.state === 'pause' || G.state === 'shop') ? runData() : {});
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
