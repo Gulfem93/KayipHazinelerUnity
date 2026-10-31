@@ -72,6 +72,10 @@ canvas.px { image-rendering: pixelated; }
 .xpbar i { display: block; height: 100%; width: 0; background: var(--xp); transition: width .2s; }
 .right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .goldchip { display: flex; align-items: center; gap: 5px; font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.chips { display: flex; align-items: center; gap: 10px; }
+.keychip { display: flex; align-items: center; gap: 3px; font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.keychip canvas { width: 20px; height: 20px; }
+.keychip.off { opacity: .35; }
 .coin {
   width: 18px; height: 18px; border-radius: 50%; flex: none;
   background: radial-gradient(circle at 35% 30%, #ffe8a0, var(--gold) 55%, #b07a1c);
@@ -110,7 +114,7 @@ canvas.px { image-rendering: pixelated; }
 }
 .acts {
   display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 6px;
-  grid-template-areas: "potion jump shield" "spin atk atk" ". atk atk";
+  grid-template-areas: "potion jump shield" "spin atk atk" "lamp atk atk";
 }
 .sk {
   --cd: 0;
@@ -123,7 +127,7 @@ canvas.px { image-rendering: pixelated; }
 .sk.locked { filter: grayscale(1) brightness(.6); }
 .sk:not(.locked) small.lock { display: none; }
 .sk.locked small { background: #3a4660; color: var(--fg); }
-#bPotion { grid-area: potion; } #bJump { grid-area: jump; } #bShield { grid-area: shield; } #bSpin { grid-area: spin; }
+#bPotion { grid-area: potion; } #bJump { grid-area: jump; } #bShield { grid-area: shield; } #bSpin { grid-area: spin; } #bLamp { grid-area: lamp; }
 #bAtk {
   grid-area: atk; border-radius: 50%; border: 3px solid #d8e2f5; touch-action: none; padding: 0;
   background: radial-gradient(circle at 40% 35%, #34446c, #182340 70%);
@@ -284,7 +288,10 @@ canvas.px { image-rendering: pixelated; }
       </div>
     </div>
     <div class="right">
-      <div class="goldchip"><span class="coin"></span><b id="goldTxt">0</b></div>
+      <div class="chips">
+        <div class="keychip off" id="keyChip" aria-label="Anahtar"><canvas data-ico="key" width="20" height="20"></canvas><b id="keyTxt">0</b></div>
+        <div class="goldchip"><span class="coin"></span><b id="goldTxt">0</b></div>
+      </div>
       <div class="score">Puan: <b id="scoreTxt">0</b></div>
     </div>
     <button class="iconbtn" id="btnPause" aria-label="Karakter ve mola">II</button>
@@ -301,6 +308,7 @@ canvas.px { image-rendering: pixelated; }
       <button class="sk" id="bJump" aria-label="Zıplama"><canvas data-ico="jump" width="30" height="30"></canvas><small class="lock">Lv5</small></button>
       <button class="sk" id="bShield" aria-label="Kalkan"><canvas data-ico="shield" width="30" height="30"></canvas><small class="lock">Lv10</small></button>
       <button class="sk" id="bSpin" aria-label="Hızlı saldırı"><canvas data-ico="spin" width="30" height="30"></canvas></button>
+      <button class="sk" id="bLamp" aria-label="Fener"><canvas data-ico="lamp" width="30" height="30"></canvas></button>
       <button id="bAtk" aria-label="Saldır"><canvas data-ico="bigsword" width="58" height="58"></canvas></button>
     </div>
   </footer>
@@ -458,6 +466,12 @@ const SPR = {
     '..KKKKKOOKGK', '.KoolKKoooKK', 'KooolKoooooo', 'KoolKKlooooo', 'KooK.KoOOOoo', 'KnnK.KOOOOOO',
     '.KK..KbbbbGb', '.....KOOOOOO', '......KooK..', '......KOOK..', '.....KhhhK..', '.....KKKKK..',
   ]), { K, o: '#9a5230', O: '#62321c', l: '#c07040', h: '#efe3c8', H: '#b8a98a', R: '#ff3a3a', G: '#f5c04a', n: '#d08070', b: '#3d2716' }),
+  ghost: sprite(mirror([
+    '........KKKK', '......KKuuuu', '.....Kuuuuuu', '....Kuuuuuuu', '...KuuuuuUuu', '...KuuKKKuuu',
+    '...KuKEEwKuu', '...KuKEEEKuu', '...KuuKKKuuu', '...Kuuuuuuuu', '...KuuuuuKKK', '...KUuuuuKEE',
+    '...KUuuuuuKK', '...KUUuuuuuu', '...KUUUuuuuu', '...KUUUUuuuu', '...KUKUUUKUU', '...K.KUK.KUK',
+    '......K...K.',
+  ]), { K, u: '#d9b8ff', U: '#9a6ad8', E: '#2a1440', w: '#ffffff' }),
   chest: sprite(mirror([
     '...KKKKKKKKK', '..Knlnnnnnnn', '..KnNnnnnnnn', '..KGGGGGGGGG', '..KnNnnnnKKK', '..KnNnnnnKGG',
     '..KnNnnnnKGK', '..KnNnnnnnKK', '..KnNnnnnnnn', '..KGGGGGGGGG', '..KKKKKKKKKK',
@@ -469,8 +483,9 @@ const MTYPES = {
   goblin:   { name: 'Yeşil Goblin', hp: 30,  atk: 8,  move: 430, aggro: 6,  xp: 10,  gold: 5,   score: 5,   size: .95 },
   skeleton: { name: 'İskelet',      hp: 50,  atk: 12, move: 600, aggro: 7,  xp: 18,  gold: 10,  score: 10,  size: 1.0 },
   bat:      { name: 'Yarasa',       hp: 24,  atk: 7,  move: 280, aggro: 9,  xp: 15,  gold: 15,  score: 15,  size: .95, erratic: .45 },
-  spider:   { name: 'Dev Örümcek',  hp: 70,  atk: 18, move: 640, aggro: 6,  xp: 30,  gold: 25,  score: 25,  size: 1.05 },
-  golem:    { name: 'Taş Golem',    hp: 160, atk: 26, move: 950, aggro: 5,  xp: 60,  gold: 50,  score: 50,  size: 1.1 },
+  spider:   { name: 'Mağara Sürüngeni', hp: 70,  atk: 18, move: 640, aggro: 6,  xp: 30,  gold: 25,  score: 25,  size: 1.05 },
+  golem:    { name: 'Taş Muhafız',  hp: 160, atk: 26, move: 950, aggro: 5,  xp: 60,  gold: 50,  score: 50,  size: 1.1 },
+  ghost:    { name: 'Ruh Tuzağı',   hp: 36,  atk: 11, move: 820, aggro: 6,  xp: 22,  gold: 18,  score: 20,  size: .95, phase: true },
   boss:     { name: 'Minotor',      hp: 420, atk: 30, move: 560, aggro: 99, xp: 200, gold: 150, score: 300, size: 1.45 },
 };
 const THEMES = [
@@ -537,6 +552,8 @@ const critPct = () => cls().crit + (G.acc.ring ? 5 : 0);
 const speedStat = () => cls().speed + (G.acc.boots ? 25 : 0) + (G.lvl - 1) * 2;
 const goldMul = () => (G.acc.charm ? 1.25 : 1) * (G.hero === 'thief' ? 1.2 : 1);
 const skillCd = id => id === 'spin' && G.hero === 'knight' ? 2000 : SKILLS.find(s => s.id === id).cd;
+// Döner koridor ve fener süreleri
+const ROT_MS = 4200, LAMP_MS = 6000, LAMP_CD = 15000;
 const moveMs = () => Math.round(17000 / speedStat());
 const xpNeed = l => 30 * l + 6 * l * l;
 // Kayma süresi her seferinde rastgele: ortalaması katla kısalır, en az 3 sn (uyarı 1,7 sn sürer)
@@ -642,15 +659,14 @@ function ensureReach(frac) {
       cnt++;
       for (const d of ALL) {
         const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
-        if (inside(nx, ny) && dist[ny][nx] < 0) front.push([x, y, d]);
+        if (inside(nx, ny) && dist[ny][nx] < 0 && !isSecret(nx, ny)) front.push([x, y, d]);
       }
     }
-    const goal = G.portal || G.chest;
-    const goalOk = !goal || dist[goal.y][goal.x] >= 0;
-    if (cnt >= need && goalOk) return;
+    const goal = [G.key, G.exit].find(g => g && dist[g.y][g.x] < 0);
+    if (cnt >= need && !goal) return;
     if (!front.length) return;
     let f;
-    if (cnt >= need && !goalOk) {
+    if (cnt >= need && goal) {
       const md = ([x, y, d]) => Math.abs(x + DIRS[d][0] - goal.x) + Math.abs(y + DIRS[d][1] - goal.y);
       f = front.reduce((a, b) => md(a) <= md(b) ? a : b);
     } else f = pick(front);
@@ -658,6 +674,31 @@ function ensureReach(frac) {
     const [fx, fy, fd] = f;
     dust(fx + .5 + DIRS[fd][0] * .5, fy + .5 + DIRS[fd][1] * .5, themeFor(G.floor).hi, 8);
   }
+}
+
+const isSecret = (x, y) => !!G.secret && G.secret.x === x && G.secret.y === y;
+// Gizli bölme başka bir yoldan açıldıysa artık gizli değildir
+function checkSecret() { const s = G.secret; if (s && ALL.some(d => canPass(s.x, s.y, d))) G.secret = null; }
+// Döner koridor: karonun açıklıklarını değiştirir, komşu duvarları da ona uydurur
+function setMask(x, y, m) {
+  G.tiles[y][x] = m;
+  for (const d of ALL) {
+    const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+    if (!inside(nx, ny)) continue;
+    if (m & d) G.tiles[ny][nx] |= OPP[d]; else G.tiles[ny][nx] &= ~OPP[d];
+  }
+  G.dirty = true;
+}
+function turnCorridors() {
+  let any = false;
+  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) if (G.feat[y][x] && G.feat[y][x].rot) {
+    const t = G.tiles[y][x];
+    setMask(x, y, ((t << 1) | (t >> 3)) & 15);
+    any = true;
+  }
+  if (!any) return;
+  sfx('turn');
+  ensureReach(.65); checkSecret();
 }
 
 /* ---------- Oyun akışı ---------- */
@@ -677,43 +718,93 @@ function startLevel(preview) {
   const h = Math.max(w, Math.min(Math.round(w * 2), Math.floor(w * VH / Math.max(1, VW))));
   G.w = w; G.h = h; G.tiles = genMaze(w, h);
   G.seeds = [...Array(h)].map(() => [...Array(w)].map(() => Math.random()));
+  G.feat = [...Array(h)].map(() => Array(w).fill(0));
   const px = ri(0, w - 1), py = ri(0, h - 1);
-  G.p = { x: px, y: py, fx: px, fy: py, t: 1, dur: 170, face: S, side: 1, atkCd: 0, lunge: 0, slash: 0, hurt: 0, cd: { spin: 0, jump: 0, shield: 0, potion: 0 }, spinFx: 0, shield: 0, jumping: false };
-  G.monsters = []; G.coins = []; G.bolts = []; G.portal = null; G.chest = null; G.floaters = []; G.parts = []; G.shake = 0; G.dirty = true;
-  const pool = ['goblin', 'goblin', 'goblin'];
-  if (F >= 2) pool.push('skeleton', 'skeleton');
-  if (F >= 3) pool.push('bat');
-  if (F >= 5) pool.push('spider', 'spider');
-  if (F >= 8) pool.push('golem');
-  const count = Math.min(Math.floor((3 + F * 1.3) * w * h / 100 + 1), Math.floor(w * h / 6));
+  G.p = { x: px, y: py, fx: px, fy: py, t: 1, dur: 170, face: S, side: 1, atkCd: 0, lunge: 0, slash: 0, hurt: 0, cd: { spin: 0, jump: 0, shield: 0, potion: 0, lamp: 0 }, spinFx: 0, shield: 0, lamp: 0, jumping: false };
+  G.monsters = []; G.coins = []; G.items = []; G.bolts = []; G.exit = null; G.key = null; G.hasKey = false; G.secret = null;
+  G.floaters = []; G.parts = []; G.shake = 0; G.dirty = true;
+  const boss = F % 5 === 0;
+  const at = (e, x, y) => !!e && e.x === x && e.y === y;
+  const reserved = (x, y) => at(G.exit, x, y) || at(G.key, x, y) || isSecret(x, y) || G.items.some(i => at(i, x, y));
+  const best = score => {
+    let b = null, bs = -Infinity;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = score(x, y);
+      if (v > bs && !(x === px && y === py) && !reserved(x, y)) { bs = v; b = { x, y }; }
+    }
+    return b;
+  };
+  // Çıkış kapısı başlangıca en uzak karoda; anahtar hem başlangıçtan hem kapıdan uzakta
+  const ds = bfs(px, py);
+  G.exit = best((x, y) => ds[y][x]);
+  const de = bfs(G.exit.x, G.exit.y);
+  const placeKey = () => { G.key = best((x, y) => Math.min(ds[y][x], de[y][x]) + Math.random()); };
+  if (!boss) placeKey();
+  // Gizli bölme: bir çıkmaz sokağın dört duvarı da örülür, içinde büyük hazine saklanır
+  const ends = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    if (ds[y][x] >= 3 && !reserved(x, y) && ALL.filter(d => canPass(x, y, d)).length === 1) ends.push([x, y]);
+  if (ends.length) {
+    const [sx, sy] = pick(ends);
+    for (const d of ALL) if (canPass(sx, sy, d)) { G.tiles[sy][sx] &= ~d; G.tiles[sy + DIRS[d][1]][sx + DIRS[d][0]] &= ~OPP[d]; }
+    G.secret = { x: sx, y: sy };
+    G.items.push({ x: sx, y: sy, type: 'chest', big: true });
+  }
   const freeCell = minD => {
     for (let k = 0; k < 500; k++) {
       const x = ri(0, w - 1), y = ri(0, h - 1);
-      if (Math.abs(x - px) + Math.abs(y - py) >= minD && !occupied(x, y)) return [x, y];
+      if (Math.abs(x - px) + Math.abs(y - py) >= minD && !occupied(x, y) && !reserved(x, y)) return [x, y];
     }
     return null;
   };
-  if (F % 5 === 0) { const c = freeCell(6); if (c) G.monsters.push(makeMonster('boss', ...c)); }
-  while (G.monsters.length < count + (F % 5 === 0 ? 1 : 0)) {
+  // Saklı ödüller: hazine sandığı, değerli taş ve altın keseleri
+  for (const type of ['chest', 'gem', ...Array(1 + Math.floor(w * h / 60)).fill('bag')]) {
+    const c = freeCell(4);
+    if (c) G.items.push({ x: c[0], y: c[1], type });
+  }
+  // Zemin mekanikleri: kayar zemin oklar yönünde iter, döner koridor yön değiştirir
+  const putFeat = (n, test, make) => {
+    for (let i = 0, k = 0; i < n && k < 400; k++) {
+      const x = ri(0, w - 1), y = ri(0, h - 1);
+      if (G.feat[y][x] || (x === px && y === py) || reserved(x, y) || !test(x, y)) continue;
+      G.feat[y][x] = make(x, y); i++;
+    }
+  };
+  putFeat(Math.min(6, 2 + Math.floor(F / 3)), (x, y) => ALL.some(d => canPass(x, y, d)), (x, y) => ({ slide: pick(ALL.filter(d => canPass(x, y, d))) }));
+  const nearBy = (x, y, fn) => ALL.some(d => { const nx = x + DIRS[d][0], ny = y + DIRS[d][1]; return inside(nx, ny) && fn(nx, ny); });
+  if (F >= 2) putFeat(Math.min(3, 1 + Math.floor((F - 2) / 4)),
+    (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1 && !nearBy(x, y, (nx, ny) => isSecret(nx, ny) || (G.feat[ny][nx] && G.feat[ny][nx].rot)),
+    (x, y) => { setMask(x, y, Math.random() < .5 ? N | S : E | W); return { rot: true }; });
+  ensureReach(.9);
+  const pool = ['goblin', 'goblin', 'goblin'];
+  if (F >= 2) pool.push('skeleton', 'skeleton');
+  if (F >= 3) pool.push('bat');
+  if (F >= 4) pool.push('ghost');
+  if (F >= 5) pool.push('spider', 'spider');
+  if (F >= 8) pool.push('golem');
+  const count = Math.min(Math.floor((3 + F * 1.3) * w * h / 100 + 1), Math.floor(w * h / 6));
+  // Minotor katında anahtar Minotordadır
+  if (boss) { const c = freeCell(6); if (c) { const b = makeMonster('boss', ...c); b.key = true; G.monsters.push(b); } else placeKey(); }
+  while (G.monsters.length < count + (boss ? 1 : 0)) {
     const type = pick(pool), c = freeCell(4);
     if (!c) break;
     G.monsters.push(makeMonster(type, ...c));
     // Yarasalar sürü halinde gelir
     if (type === 'bat') for (const d of ALL) {
       const bx = c[0] + DIRS[d][0], by = c[1] + DIRS[d][1];
-      if (inside(bx, by) && !occupied(bx, by) && Math.random() < .5) G.monsters.push(makeMonster('bat', bx, by));
+      if (inside(bx, by) && !occupied(bx, by) && !reserved(bx, by) && Math.random() < .5) G.monsters.push(makeMonster('bat', bx, by));
     }
+  }
+  // Anahtarı bir muhafız bekler
+  if (G.key && F >= 3) {
+    const d = ALL.find(d => canPass(G.key.x, G.key.y, d) && !occupied(G.key.x + DIRS[d][0], G.key.y + DIRS[d][1]));
+    if (d) G.monsters.push(makeMonster(F >= 8 ? 'golem' : 'spider', G.key.x + DIRS[d][0], G.key.y + DIRS[d][1]));
   }
   for (let i = 0; i < Math.floor(w * h / 10); i++) {
     const c = freeCell(1);
     if (c && !G.coins.some(k => k.x === c[0] && k.y === c[1])) G.coins.push({ x: c[0], y: c[1], v: ri(2, 4) });
   }
-  // Kayıp hazine: oyuncuya en uzak köşede bir sandık
-  const dist = bfs(px, py);
-  let cx = 0, cy = 0, cd = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (dist[y][x] > cd && !occupied(x, y)) { cd = dist[y][x]; cx = x; cy = y; }
-  G.chest = { x: cx, y: cy };
-  G.coins = G.coins.filter(k => !(k.x === cx && k.y === cy));
+  G.rot = { timer: ROT_MS };
   const firstShift = shiftInterval();
   G.shift = { timer: firstShift, total: firstShift, warn: null, anim: null };
   G.state = 'play'; G.grace = 1500;
@@ -724,7 +815,7 @@ function startLevel(preview) {
   paintIcon($('portrait'), 'face');
   paintIcon(document.querySelector('#bAtk canvas'), cls().weapon === 'sword' ? 'bigsword' : cls().weapon, cls().weapon === 'staff' ? '#5fd0ff' : undefined);
   hideOverlay();
-  toast(F === 1 ? `Bol şans, ${heroName()}!` : F % 5 === 0 ? `Kat ${F} · Minotor burada!` : `Kat ${F} · ${themeFor(F).name}`);
+  toast(F === 1 ? 'Anahtarı bul, çıkışa ulaş!' : boss ? `Kat ${F} · Anahtar Minotorda!` : `Kat ${F} · ${themeFor(F).name}`);
 }
 function makeMonster(type, x, y) {
   const b = MTYPES[type], F = G.floor, hp = Math.round(b.hp * (1 + .18 * (F - 1)));
@@ -732,7 +823,7 @@ function makeMonster(type, x, y) {
     type, x, y, fx: x, fy: y, t: 1, dur: Math.min(260, b.move * .6), hp, maxHp: hp,
     atk: Math.round(b.atk * (1 + .12 * (F - 1))), move: b.move, aggro: b.aggro, erratic: b.erratic || 0,
     gold: Math.round(b.gold * (1 + .1 * (F - 1))), xp: Math.round(b.xp * (1 + .1 * (F - 1))), score: b.score,
-    timer: rnd(400, b.move + 800), atkCd: 800, hurt: 0, lunge: 0, face: S, seed: Math.random() * 10,
+    timer: rnd(400, b.move + 800), atkCd: 800, phase: !!b.phase, hurt: 0, lunge: 0, face: S, seed: Math.random() * 10,
   };
 }
 const monsterAt = (x, y) => G.monsters.find(m => m.x === x && m.y === y);
@@ -759,8 +850,25 @@ function attack() {
   if (!G || G.state !== 'play' || G.shift.anim) return;
   const p = G.p;
   if (p.atkCd > 0 || p.t < 1) return;
-  const d = p.face, m = canPass(p.x, p.y, d) ? monsterAt(p.x + DIRS[d][0], p.y + DIRS[d][1]) : null;
+  const d = p.face, nx = p.x + DIRS[d][0], ny = p.y + DIRS[d][1], open = canPass(p.x, p.y, d);
+  const fm = monsterAt(nx, ny), m = fm && (open || fm.phase) ? fm : null;
+  // Gizli bölmenin duvarına vurmak onu yıkar
+  if (!open && isSecret(nx, ny)) revealSecret(d);
   if (G.hero === 'mage') castBolt(d, m); else swing(m);
+}
+function revealSecret(d) {
+  const p = G.p;
+  openWall(p.x, p.y, d); G.secret = null;
+  dust(p.x + DIRS[d][0] + .5, p.y + DIRS[d][1] + .5, '#c77dff', 22);
+  G.shake = RM ? 0 : 5;
+  toast('Gizli bölme bulundu!'); sfx('portal');
+}
+function useLamp() {
+  if (!G || G.state !== 'play') return;
+  const p = G.p;
+  if (p.cd.lamp > 0) return;
+  p.lamp = LAMP_MS; p.cd.lamp = LAMP_CD; sfx('lamp');
+  if (G.secret && Math.abs(G.secret.x - p.x) + Math.abs(G.secret.y - p.y) <= 4) toast('Yakında gizli bir bölme var!');
 }
 // Büyücü: büyü 2 kareye kadar ilerler, duvarda ya da ilk canavarda durur
 function castBolt(d, near) {
@@ -828,7 +936,7 @@ function killMonster(m) {
   if (c) c.v += m.gold; else G.coins.push({ x: m.x, y: m.y, v: m.gold });
   sfx('kill');
   gainXp(m.xp, m.x + .5, m.y - .1);
-  if (!G.monsters.length) spawnPortal();
+  if (m.key) { G.key = { x: m.x, y: m.y }; toast('Anahtar düştü!'); sfx('portal'); }
 }
 function gainXp(v, x, y) {
   G.xp += v;
@@ -840,14 +948,6 @@ function gainXp(v, x, y) {
     toast(sk ? `${heroName()} Lv. ${G.lvl}! ${sk.name} açıldı` : `${heroName()} seviye atladı! Lv. ${G.lvl}`);
     dust(G.p.x + .5, G.p.y + .5, '#f5c04a', 24); sfx('level');
   }
-}
-function spawnPortal() {
-  const dist = bfs(G.p.x, G.p.y);
-  let bx = G.p.x, by = G.p.y, bd = -1;
-  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++)
-    if (dist[y][x] > bd && !(G.chest && G.chest.x === x && G.chest.y === y)) { bd = dist[y][x]; bx = x; by = y; }
-  G.portal = { x: bx, y: by };
-  toast('Geçit açıldı!'); sfx('portal');
 }
 function hurtPlayer(raw) {
   const p = G.p;
@@ -869,13 +969,46 @@ function onArrive() {
     floater('+' + v, p.x + .5, p.y + .2, '#f5c04a');
     sfx('coin');
   }
-  if (G.chest && G.chest.x === p.x && G.chest.y === p.y) {
-    const v = Math.round(ri(25, 40) * (1 + .15 * (G.floor - 1)) * goldMul());
-    G.gold += v; G.score += 20; G.chest = null;
-    toast(`Kayıp hazine! +${v} altın`);
-    dust(p.x + .5, p.y + .5, '#f5c04a', 26); sfx('chest');
+  const ii = G.items.findIndex(i => i.x === p.x && i.y === p.y);
+  if (ii >= 0) collect(G.items.splice(ii, 1)[0]);
+  if (G.key && G.key.x === p.x && G.key.y === p.y) {
+    G.key = null; G.hasKey = true; G.score += 15;
+    toast('Gizemli anahtar! Çıkış açıldı');
+    dust(p.x + .5, p.y + .5, '#f5c04a', 20); sfx('key');
   }
-  if (G.portal && G.portal.x === p.x && G.portal.y === p.y) levelComplete();
+  if (G.exit && G.exit.x === p.x && G.exit.y === p.y) {
+    if (G.hasKey) return levelComplete();
+    toast(G.key ? 'Kapı kilitli · anahtarı bul' : 'Kapı kilitli · anahtar Minotorda');
+  }
+  // Kayar zemin: oklar yönünde bir kare daha kaydırır
+  const f = G.feat[p.y][p.x];
+  if (f && f.slide && canPass(p.x, p.y, f.slide)) {
+    const nx = p.x + DIRS[f.slide][0], ny = p.y + DIRS[f.slide][1];
+    if (!occupied(nx, ny)) {
+      p.fx = p.x; p.fy = p.y; p.x = nx; p.y = ny; p.t = 0; p.dur = Math.round(moveMs() * .55);
+      sfx('slide');
+    }
+  }
+}
+function collect(it) {
+  const p = G.p, F = G.floor;
+  if (it.type === 'chest') {
+    const v = Math.round(ri(25, 40) * (1 + .15 * (F - 1)) * goldMul() * (it.big ? 2 : 1));
+    G.gold += v; G.score += it.big ? 60 : 20;
+    toast(it.big ? `Gizli hazine! +${v} altın` : `Hazine sandığı! +${v} altın`);
+    if (it.big && G.potions < POTION.max) { G.potions++; floater('+1 İksir', p.x + .5, p.y - .2, '#ff8a8a'); }
+    dust(p.x + .5, p.y + .5, '#f5c04a', 26); sfx('chest');
+  } else if (it.type === 'gem') {
+    const pts = 40 + 5 * F, v = Math.round(15 * goldMul());
+    G.score += pts; G.gold += v;
+    toast(`Değerli taş! +${pts} puan`);
+    dust(p.x + .5, p.y + .5, '#c77dff', 22); sfx('chest');
+  } else if (it.type === 'bag') {
+    const v = Math.round(ri(12, 22) * (1 + .1 * (F - 1)) * goldMul());
+    G.gold += v;
+    floater('+' + v, p.x + .5, p.y + .2, '#f5c04a', true);
+    dust(p.x + .5, p.y + .5, '#f5c04a', 12); sfx('coin');
+  }
 }
 function levelComplete() {
   const bonus = 50 * G.floor;
@@ -918,16 +1051,16 @@ function rotate(grid, a) {
 }
 function commitShift(a) {
   const d = a.dir, w = G.w, h = G.h;
-  rotate(G.tiles, a); rotate(G.seeds, a);
+  rotate(G.tiles, a); rotate(G.seeds, a); rotate(G.feat, a);
   const mv = e => {
     if (!e) return;
     if (a.axis === 'row' && e.y === a.idx) e.x = (e.x + d + w) % w;
     else if (a.axis === 'col' && e.x === a.idx) e.y = (e.y + d + h) % h;
     e.fx = e.x; e.fy = e.y; e.t = 1;
   };
-  [G.p, ...G.monsters, ...G.coins, G.portal, G.chest].forEach(mv);
+  [G.p, ...G.monsters, ...G.coins, ...G.items, G.exit, G.key, G.secret].forEach(mv);
   G.dirty = true;
-  ensureReach(.65);
+  ensureReach(.65); checkSecret();
 }
 
 /* ---------- Güncelleme ---------- */
@@ -951,11 +1084,14 @@ function update(dt) {
     G.shake = RM ? 0 : 4; sfx('shift');
     return;
   }
+  G.rot.timer -= dt;
+  if (G.rot.timer <= 0) { G.rot.timer = ROT_MS; turnCorridors(); }
 
   const p = G.p;
   p.atkCd -= dt;
   for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
   p.shield = Math.max(0, p.shield - dt);
+  p.lamp = Math.max(0, p.lamp - dt);
   p.lunge = Math.max(0, p.lunge - dt / 160);
   p.slash = Math.max(0, p.slash - dt / 220);
   p.hurt = Math.max(0, p.hurt - dt / 450);
@@ -978,7 +1114,7 @@ function update(dt) {
     const dx = p.x - m.x, dy = p.y - m.y;
     if (Math.abs(dx) + Math.abs(dy) === 1 && !p.jumping) {
       const d = dirOf(dx, dy);
-      if (canPass(m.x, m.y, d)) {
+      if (m.phase || canPass(m.x, m.y, d)) {
         if (m.atkCd <= 0 && m.t >= 1) {
           m.atkCd = 1000; m.lunge = 1; m.face = d;
           hurtPlayer(m.atk);
@@ -990,13 +1126,18 @@ function update(dt) {
     m.timer -= dt;
     if (m.timer > 0 || m.t < 1) continue;
     m.timer = m.move * rnd(.85, 1.15);
-    const opts = ALL.filter(d => canPass(m.x, m.y, d) && !occupied(m.x + DIRS[d][0], m.y + DIRS[d][1]));
+    // Ruh Tuzağı duvarların içinden geçer ve kuş uçuşu yaklaşır
+    const opts = ALL.filter(d => {
+      const nx = m.x + DIRS[d][0], ny = m.y + DIRS[d][1];
+      return (m.phase ? inside(nx, ny) : canPass(m.x, m.y, d)) && !occupied(nx, ny);
+    });
     if (!opts.length) continue;
-    const md = pd[m.y][m.x];
+    const md = m.phase ? Math.abs(dx) + Math.abs(dy) : pd[m.y][m.x];
     const chasing = md > 0 && md <= m.aggro;
     let d = null;
     if (chasing && !(m.erratic && Math.random() < m.erratic)) {
-      const better = opts.filter(o => pd[m.y + DIRS[o][1]][m.x + DIRS[o][0]] === md - 1);
+      const near = o => m.phase ? Math.abs(dx - DIRS[o][0]) + Math.abs(dy - DIRS[o][1]) : pd[m.y + DIRS[o][1]][m.x + DIRS[o][0]];
+      const better = opts.filter(o => near(o) === md - 1);
       if (better.length) d = pick(better);
       else if (!m.erratic) continue;
     }
@@ -1118,6 +1259,8 @@ function drawBoard(g, L, an, e) {
   g.fillStyle = T.grout; g.fillRect(ox, oy, bw, bh);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
     each(x, y, (dx, dy) => floorTile(g, ox + x * c + dx, oy + y * c + dy, c, G.seeds[y][x], T));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    if (G.feat[y][x]) each(x, y, (dx, dy) => drawFeat(g, G.feat[y][x], G.tiles[y][x], ox + x * c + dx, oy + y * c + dy, c));
   const wt = Math.max(4, Math.round(c * .26)), hw = Math.round(wt / 2), fh = Math.max(4, Math.round(c * .2));
   const u = Math.max(1, Math.round(c / 18)), brick = Math.max(6, Math.round(c / 3));
   const rectsOf = (x, y, X, Y) => {
@@ -1171,6 +1314,26 @@ function drawBoard(g, L, an, e) {
   g.restore();
   return { lineOff, each, wt, hw, fh };
 }
+// Kayar zemin: sarı çift ok; döner koridor: açık yönleri oklu taş disk
+function drawFeat(g, f, t, X, Y, c) {
+  const u = Math.max(1, Math.round(c / 18)), cx = X + c / 2, cy = Y + c / 2;
+  if (f.slide) {
+    g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(X + u * 2, Y + u * 2, c - u * 4, c - u * 4);
+    g.fillStyle = 'rgba(245,192,74,.18)'; g.fillRect(X + u * 3, Y + u * 3, c - u * 6, c - u * 6);
+    const [dx, dy] = DIRS[f.slide];
+    g.fillStyle = '#f5c04a';
+    for (const k of [-.15, .15]) chevron(cx + dx * c * k, cy + dy * c * k, c * .13, f.slide, g);
+  } else if (f.rot) {
+    const r = c * .44;
+    g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.arc(cx, cy + u * 2, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#4e4a5e'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#6a6680'; g.beginPath(); g.arc(cx, cy, r * .66, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#34304a'; g.lineWidth = u;
+    g.beginPath(); g.arc(cx, cy, r * .66, 0, Math.PI * 2); g.moveTo(cx - r * .66, cy); g.lineTo(cx + r * .66, cy); g.moveTo(cx, cy - r * .66); g.lineTo(cx, cy + r * .66); g.stroke();
+    g.fillStyle = '#ffb02a';
+    for (const d of ALL) if (t & d) chevron(cx + DIRS[d][0] * r * .82, cy + DIRS[d][1] * r * .82, c * .09, d, g);
+  }
+}
 function render(time) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -1222,13 +1385,28 @@ function render(time) {
     const ry = ent.fy == null ? ent.y : ent.fy + (ent.y - ent.fy) * k;
     return [ox + (rx + .5) * c + dx, oy + (ry + .5) * c + dy];
   };
-  if (G.portal) each(G.portal.x, G.portal.y, (dx, dy) => drawPortal(...ctr(G.portal, dx, dy), c, time));
-  if (G.chest) each(G.chest.x, G.chest.y, (dx, dy) => {
-    const [x, y] = ctr(G.chest, dx, dy), s = spriteSize(c, .95);
-    shadow(x, y, c * .8);
-    ctx.drawImage(SPR.chest.r, snap(x - s / 2), snap(y + c * .3 - s), s, s);
-    if ((time / 100 + G.chest.x * 5) % 25 < 2) sparkle(x + c * .2, y - c * .1, c);
+  // Döner koridor dönmek üzere: diskin çevresinde dönen oklar
+  if (G.rot.timer < 900 && !an) {
+    ctx.strokeStyle = `rgba(255,176,42,${.5 + .4 * Math.sin(time / 70)})`; ctx.lineWidth = Math.max(2, c * .06);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (G.feat[y][x] && G.feat[y][x].rot) {
+      const cx = ox + (x + .5) * c, cy = oy + (y + .5) * c, a = time / 160;
+      for (const k of [0, Math.PI]) { ctx.beginPath(); ctx.arc(cx, cy, c * .5, a + k, a + k + 1.2); ctx.stroke(); }
+    }
+  }
+  // Gizli bölme: yakındayken ya da fener yanarken hafifçe parıldar
+  const sec = G.secret, lampOn = G.p.lamp > 0;
+  if (sec && (lampOn || Math.abs(sec.x - G.p.x) + Math.abs(sec.y - G.p.y) <= 2)) each(sec.x, sec.y, (dx, dy) => {
+    const [x, y] = ctr(sec, dx, dy), r = c * .55, g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(199,125,255,${(lampOn ? .4 : .18) + .1 * Math.sin(time / 200)})`); g.addColorStop(1, 'rgba(199,125,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
   });
+  if (G.exit) each(G.exit.x, G.exit.y, (dx, dy) => drawExit(...ctr(G.exit, dx, dy), c, time));
+  for (const it of G.items) {
+    const hid = isSecret(it.x, it.y);
+    if (hid && !lampOn) continue;
+    each(it.x, it.y, (dx, dy) => drawItem(it, ...ctr(it, dx, dy), c, time, hid ? .45 : 1));
+  }
+  if (G.key) each(G.key.x, G.key.y, (dx, dy) => drawItem({ type: 'key', x: G.key.x, y: G.key.y }, ...ctr(G.key, dx, dy), c, time, 1));
   // Canavarın altında kalan altınlar canavarın arkasında kalsın
   for (const k of G.coins) if (monsterAt(k.x, k.y)) each(k.x, k.y, (dx, dy) => drawCoin(...ctr(k, dx, dy), c, time, k));
   const ents = [...G.monsters.map(m => ({ m, y: m.y })), { p: G.p, y: G.p.y }].sort((a, b) => a.y - b.y);
@@ -1250,13 +1428,14 @@ function render(time) {
 
   // Işık: karanlık katman, oyuncu, meşale ve geçit çevresinde açılır
   const [ppx, ppy] = ctr(G.p, 0, 0);
-  const lights = [[ppx, ppy, c * 3.4, 1]];
+  const lights = [[ppx, ppy, c * (3.4 + 2.8 * Math.min(1, G.p.lamp / 500)), 1]];
   for (const [tx, ty, s] of torches) lights.push([tx, ty + c * .2, c * (1.9 + .12 * Math.sin(time / 110 + s * 50)), .9]);
-  if (G.portal) lights.push([...ctr(G.portal, 0, 0), c * 2.2, .9]);
+  if (G.exit) lights.push([...ctr(G.exit, 0, 0), c * (G.hasKey ? 2.4 : 1.2), .9]);
+  if (G.key) lights.push([...ctr(G.key, 0, 0), c * 1.4, .8]);
   lk.setTransform(1, 0, 0, 1, 0, 0);
   lk.globalCompositeOperation = 'source-over';
   lk.clearRect(0, 0, lightCv.width, lightCv.height);
-  lk.fillStyle = 'rgba(2,4,12,.58)';
+  lk.fillStyle = 'rgba(2,4,12,.64)';
   lk.fillRect(ox, oy, bw, bh);
   lk.globalCompositeOperation = 'destination-out';
   for (const [x, y, r, a] of lights) {
@@ -1320,14 +1499,14 @@ function render(time) {
   ctx.globalAlpha = 1;
   ctx.restore();
 }
-function chevron(x, y, s, d) {
+function chevron(x, y, s, d, g = ctx) {
   const [dx, dy] = DIRS[d], px = -dy, py = dx;
-  ctx.beginPath();
-  ctx.moveTo(x + dx * s, y + dy * s);
-  ctx.lineTo(x - dx * s + px * s, y - dy * s + py * s);
-  ctx.lineTo(x - dx * s * .3, y - dy * s * .3);
-  ctx.lineTo(x - dx * s - px * s, y - dy * s - py * s);
-  ctx.closePath(); ctx.fill();
+  g.beginPath();
+  g.moveTo(x + dx * s, y + dy * s);
+  g.lineTo(x - dx * s + px * s, y - dy * s + py * s);
+  g.lineTo(x - dx * s * .3, y - dy * s * .3);
+  g.lineTo(x - dx * s - px * s, y - dy * s - py * s);
+  g.closePath(); g.fill();
 }
 function shadow(x, y, w) {
   ctx.fillStyle = 'rgba(0,0,0,.42)';
@@ -1446,12 +1625,18 @@ function drawMonster(m, x, y, c, time) {
   const [fx, fy] = DIRS[m.face] || [0, 1], L = m.lunge * c * .2;
   x += fx * L; y += fy * L;
   const ph = time / 1000 + m.seed;
-  if (m.type !== 'bat') shadow(x, y, c * Math.min(1.3, b.size) * .9);
+  if (m.type !== 'bat' && m.type !== 'ghost') shadow(x, y, c * Math.min(1.3, b.size) * .9);
   else shadow(x, y + c * .1, c * .55);
   const flip = G.p.x < m.x;
   const img = m.hurt > .5 ? (flip ? set.wl : set.wr) : (flip ? set.l : set.r);
   let dw = s, dh = s, top = y + c * .36 - s;
-  if (m.type === 'bat') {
+  if (m.type === 'ghost') {
+    top = y - s * .78 + Math.sin(ph * 2.4) * c * .07;
+    const gr = ctx.createRadialGradient(x, top + s / 2, 0, x, top + s / 2, c * .6);
+    gr.addColorStop(0, 'rgba(199,125,255,.35)'); gr.addColorStop(1, 'rgba(199,125,255,0)');
+    ctx.fillStyle = gr; ctx.fillRect(x - c * .6, top + s / 2 - c * .6, c * 1.2, c * 1.2);
+    ctx.globalAlpha = .6 + .25 * Math.sin(ph * 3);
+  } else if (m.type === 'bat') {
     dh = s * (.8 + .2 * Math.sin(time / 70 + m.seed));
     top = y - s * .8 + Math.sin(ph * 3) * c * .06;
   } else if (m.t < 1) top -= Math.sin(m.t * Math.PI) * c * .12;
@@ -1459,6 +1644,7 @@ function drawMonster(m, x, y, c, time) {
   else if (m.type === 'spider') dw = s * (1 + .05 * Math.sin(ph * 9));
   else top -= (Math.floor(ph * 3) % 2) * u;
   ctx.drawImage(img, snap(x - dw / 2), snap(top), dw, dh);
+  ctx.globalAlpha = 1;
   if (m.hp < m.maxHp) {
     const bwid = c * .72, hh = Math.max(3, Math.round(c * .08)), bx = x - bwid / 2, by = top + u * 2 - hh - 3;
     ctx.fillStyle = '#0a0612'; ctx.fillRect(bx - 1, by - 1, bwid + 2, hh + 2);
@@ -1484,22 +1670,48 @@ function drawCoin(x, y, c, time, k) {
   ctx.fillStyle = '#fff3c0'; ctx.fillRect(cx, cy, Math.max(u, cw - u * 2) > u ? u : u, Math.round(ch / 2 / u) * u);
   if ((time / 80 + k.x * 7 + k.y * 3) % 40 < 1.5) sparkle(x + c * .12, y - c * .12, c);
 }
-function drawPortal(x, y, c, time) {
-  const g = ctx.createRadialGradient(x, y, 0, x, y, c * .6);
-  g.addColorStop(0, 'rgba(160,220,255,.95)'); g.addColorStop(.5, 'rgba(60,120,255,.4)'); g.addColorStop(1, 'rgba(60,120,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(x - c * .65, y - c * .65, c * 1.3, c * 1.3);
-  ctx.lineWidth = Math.max(2, c * .06);
-  for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = i % 2 ? '#3d8bff' : '#cfeaff';
-    const a = time / (380 + i * 140) * (i % 2 ? -1 : 1);
-    ctx.beginPath(); ctx.arc(x, y, c * (.16 + i * .09), a, a + Math.PI * 1.3); ctx.stroke();
+// Arayüz simgeleri oyunda da kullanılır: bir kez çizilip saklanır
+const ICO = {};
+function icoImg(kind) {
+  if (!ICO[kind]) { const c = document.createElement('canvas'); c.setAttribute('width', 40); c.setAttribute('height', 40); paintIcon(c, kind); ICO[kind] = c; }
+  return ICO[kind];
+}
+function drawIco(kind, x, y, s) {
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(icoImg(kind), x - s / 2, y - s / 2, s, s);
+  ctx.imageSmoothingEnabled = false;
+}
+function drawExit(x, y, c, time) {
+  const open = G.hasKey, s = c * .92;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, c * .7);
+  g.addColorStop(0, open ? `rgba(255,200,80,${.55 + .15 * Math.sin(time / 160)})` : 'rgba(255,90,60,.16)');
+  g.addColorStop(1, 'rgba(255,150,40,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - c * .7, y - c * .7, c * 1.4, c * 1.4);
+  drawIco(open ? 'door' : 'lockdoor', x, y - c * .08, s);
+  const fs = Math.max(8, Math.round(c * .19));
+  ctx.font = `900 ${fs}px Nunito, system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(2, fs / 4); ctx.strokeStyle = '#140e1e';
+  ctx.strokeText('ÇIKIŞ', x, y - s * .56);
+  ctx.fillStyle = open ? '#ffd04a' : '#a08a70'; ctx.fillText('ÇIKIŞ', x, y - s * .56);
+}
+function drawItem(it, x, y, c, time, alpha) {
+  ctx.globalAlpha = alpha;
+  if (it.type === 'chest') {
+    const s = spriteSize(c, it.big ? 1.05 : .95);
+    shadow(x, y, c * .8);
+    ctx.drawImage(SPR.chest.r, snap(x - s / 2), snap(y + c * .3 - s), s, s);
+    if ((time / 100 + it.x * 5) % 25 < 2) sparkle(x + c * .2, y - c * .1, c);
+  } else {
+    const bob = Math.sin(time / 280 + it.x * 1.3 + it.y) * c * .05, rgb = it.type === 'gem' ? '199,125,255' : '255,200,80';
+    const g = ctx.createRadialGradient(x, y + bob, 0, x, y + bob, c * .45);
+    g.addColorStop(0, `rgba(${rgb},.35)`); g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g; ctx.fillRect(x - c * .45, y + bob - c * .45, c * .9, c * .9);
+    shadow(x, y, c * .6);
+    drawIco(it.type, x, y - c * .06 + bob, c * (it.type === 'key' ? .62 : .56));
+    if ((time / 90 + it.x * 7) % 30 < 1.5) sparkle(x + c * .15, y - c * .18, c);
   }
-  const u = Math.max(2, Math.round(c / 14));
-  ctx.fillStyle = '#cfeaff';
-  for (let i = 0; i < 6; i++) {
-    const a = time / 600 + i * Math.PI / 3, r = c * (.42 + .05 * Math.sin(time / 200 + i));
-    ctx.fillRect(snap(x + Math.cos(a) * r - u / 2), snap(y + Math.sin(a) * r * .8 - u / 2), u, u);
-  }
+  ctx.globalAlpha = 1;
 }
 
 /* ---------- Simgeler (arayüz) ---------- */
@@ -1610,6 +1822,55 @@ function paintIcon(cnv, kind, color) {
     case 'bars':
       k.fillStyle = '#f5c04a'; k.fillRect(8, 24, 6, 9); k.fillRect(17, 17, 6, 16); k.fillRect(26, 9, 6, 24);
       break;
+    case 'key':
+      k.beginPath(); k.arc(13, 13, 7, 0, Math.PI * 2); k.lineWidth = 6; k.strokeStyle = '#14101c'; k.stroke();
+      k.lineWidth = 3.5; k.strokeStyle = color || '#f5c04a'; k.stroke();
+      line([[18, 18], [34, 34]], 6.5, '#14101c'); line([[27, 27], [23, 31]], 6, '#14101c'); line([[32, 32], [28, 36]], 6, '#14101c');
+      line([[18, 18], [34, 34]], 3.5, color || '#f5c04a'); line([[27, 27], [23, 31]], 3, color || '#f5c04a'); line([[32, 32], [28, 36]], 3, color || '#f5c04a');
+      break;
+    case 'gem':
+      k.fillStyle = '#14101c'; k.beginPath(); k.moveTo(20, 2); k.lineTo(34, 16); k.lineTo(20, 38); k.lineTo(6, 16); k.closePath(); k.fill();
+      k.fillStyle = '#c77dff'; k.beginPath(); k.moveTo(20, 5); k.lineTo(31, 16); k.lineTo(20, 34); k.lineTo(9, 16); k.closePath(); k.fill();
+      k.fillStyle = '#ecd2ff'; k.beginPath(); k.moveTo(20, 5); k.lineTo(14, 16); k.lineTo(20, 16); k.closePath(); k.fill();
+      k.fillStyle = '#7a3ab8'; k.beginPath(); k.moveTo(31, 16); k.lineTo(20, 34); k.lineTo(20, 16); k.closePath(); k.fill();
+      break;
+    case 'bag':
+      k.fillStyle = '#14101c'; k.beginPath(); k.ellipse(20, 26, 14.5, 12, 0, 0, Math.PI * 2); k.fill(); k.fillRect(13, 7, 14, 10);
+      k.fillStyle = '#9a6a3c'; k.beginPath(); k.ellipse(20, 26, 12.5, 10, 0, 0, Math.PI * 2); k.fill();
+      k.fillStyle = '#7a4f2a'; k.fillRect(15, 9, 10, 7);
+      line([[12, 15], [28, 15]], 3, '#c9a46a');
+      circ(20, 27, 5, '#c8901f'); circ(20, 27, 3.5, '#f5c04a');
+      break;
+    case 'lamp': {
+      const gl = k.createRadialGradient(20, 23, 0, 20, 23, 18);
+      gl.addColorStop(0, 'rgba(255,190,80,.7)'); gl.addColorStop(1, 'rgba(255,150,40,0)');
+      k.fillStyle = gl; k.fillRect(0, 0, 40, 40);
+      line([[14, 10], [20, 4], [26, 10]], 2.5, '#c9a46a');
+      k.fillStyle = '#3a2a1a'; k.fillRect(11, 9, 18, 4); k.fillRect(11, 32, 18, 4);
+      k.fillStyle = '#ffd04a'; k.fillRect(13, 13, 14, 19);
+      k.fillStyle = '#fff3c0'; k.fillRect(18, 17, 4, 11);
+      k.fillStyle = '#3a2a1a'; k.fillRect(12, 13, 2, 19); k.fillRect(26, 13, 2, 19);
+      break;
+    }
+    case 'door': case 'lockdoor': {
+      const arch = (x0, x1, top, bottom) => {
+        const r = (x1 - x0) / 2;
+        k.beginPath(); k.moveTo(x0, bottom); k.lineTo(x0, top + r); k.arc(x0 + r, top + r, r, Math.PI, 0); k.lineTo(x1, bottom); k.closePath(); k.fill();
+      };
+      k.fillStyle = '#14101c'; arch(3, 37, 1, 40);
+      k.fillStyle = '#6a6a7a'; arch(5, 35, 3, 40);
+      if (kind === 'door') {
+        k.fillStyle = '#ffb02a'; arch(10, 30, 8, 40);
+        k.fillStyle = '#fff3c0'; arch(15, 25, 15, 40);
+      } else {
+        k.fillStyle = '#5a3a22'; arch(10, 30, 8, 40);
+        k.fillStyle = '#3d2716'; k.fillRect(16, 12, 1.5, 28); k.fillRect(22.5, 12, 1.5, 28);
+        k.fillStyle = '#9a9aa8'; k.fillRect(15, 24, 10, 8);
+        k.beginPath(); k.arc(20, 24, 3.5, Math.PI, 0); k.lineWidth = 2; k.strokeStyle = '#9a9aa8'; k.stroke();
+        k.fillStyle = '#14101c'; k.fillRect(19, 26, 2, 4);
+      }
+      break;
+    }
     case 'hero': case 'face': {
       const img = ((G && HEROES[G.hero]) || HERO).front[0].r;
       if (kind === 'face') k.drawImage(img, 4, 2, 16, 16, 0, 3, 40, 40);
@@ -1622,7 +1883,7 @@ function paintAll(root) { root.querySelectorAll('canvas[data-ico]').forEach(c =>
 
 /* ---------- Arayüz ---------- */
 const H = {};
-['hpFill', 'hpTxt', 'lvTxt', 'xpFill', 'goldTxt', 'scoreTxt', 'floorTxt', 'monTxt', 'shiftTxt', 'shiftFill', 'potCnt', 'bJump', 'bShield', 'bSpin', 'bPotion'].forEach(id => H[id] = $(id));
+['keyTxt', 'keyChip', 'bLamp', 'hpFill', 'hpTxt', 'lvTxt', 'xpFill', 'goldTxt', 'scoreTxt', 'floorTxt', 'monTxt', 'shiftTxt', 'shiftFill', 'potCnt', 'bJump', 'bShield', 'bSpin', 'bPotion'].forEach(id => H[id] = $(id));
 function setText(el, v) { if (el._v !== v) { el._v = v; el.textContent = v; } }
 function updateHud() {
   if (!G || !G.tiles) return;
@@ -1634,7 +1895,9 @@ function updateHud() {
   setText(H.goldTxt, String(G.gold));
   setText(H.scoreTxt, String(G.score));
   setText(H.floorTxt, `Kat ${G.floor} · ${themeFor(G.floor).name}`);
-  setText(H.monTxt, G.portal ? 'Geçide git' : `Canavar ${G.monsters.length}`);
+  setText(H.keyTxt, G.hasKey ? '1' : '0');
+  H.keyChip.classList.toggle('off', !G.hasKey);
+  setText(H.monTxt, (G.hasKey ? 'Çıkışa git' : G.key ? 'Anahtarı bul' : 'Anahtar Minotorda') + ` · Canavar ${G.monsters.length}`);
   const sh = G.shift;
   if (sh.anim || sh.warn) { setText(H.shiftTxt, 'KAYIYOR!'); H.shiftTxt.className = 'warn'; }
   else { setText(H.shiftTxt, `Kayma ${(Math.max(0, sh.timer) / 1000).toFixed(1)} sn`); H.shiftTxt.className = ''; }
@@ -1646,6 +1909,7 @@ function updateHud() {
     el.style.setProperty('--cd', (G.p.cd[s.id] / skillCd(s.id)).toFixed(3));
   }
   H.bPotion.classList.toggle('locked', G.potions <= 0);
+  H.bLamp.style.setProperty('--cd', (G.p.cd.lamp / LAMP_CD).toFixed(3));
 }
 let toastT = 0;
 function toast(msg) {
@@ -1664,10 +1928,11 @@ function showTitle() {
     <h1 class="logo">Labirent:<br>Kayıp Hazineler</h1>
     <div class="tagline">Hareket eden labirentlerde hayatta kal, güçlen, keşfet!</div>
     <div class="feats">
-      <div class="feat"><canvas data-ico="maze" width="40" height="40"></canvas><div><b>Hareket Eden Labirentler</b><span>Mavi oklu sıra ya da sütun birkaç saniye içinde kayar. Üstündeki her şey onunla gider.</span></div></div>
-      <div class="feat"><canvas data-ico="skull" width="40" height="40"></canvas><div><b>Canavarlarla Savaş</b><span>Joystick ile yürü, saldırı düğmesiyle vur. Goblinler, iskeletler, yarasa sürüleri ve daha fazlası.</span></div></div>
-      <div class="feat"><canvas data-ico="coin" width="40" height="40"></canvas><div><b>Ekipman Sistemi</b><span>Altınlarla mağazadan silah, zırh, aksesuar ve iksir al.</span></div></div>
-      <div class="feat"><canvas data-ico="bars" width="40" height="40"></canvas><div><b>Seviye ve Gelişim</b><span>XP topla, seviye atla. Lv5'te Zıplama, Lv10'da Kalkan açılır.</span></div></div>
+      <div class="feat"><canvas data-ico="door" width="40" height="40"></canvas><div><b>Anahtarı Bul, Çıkışa Ulaş</b><span>Gizemli anahtarı al, ÇIKIŞ kapısı açılsın. Anahtarı çoğu zaman bir muhafız bekler.</span></div></div>
+      <div class="feat"><canvas data-ico="maze" width="40" height="40"></canvas><div><b>Hareket Eden Labirent</b><span>Sıralar kayar, döner koridorlar yön değiştirir, oklu kayar zemin seni bir kare iter.</span></div></div>
+      <div class="feat"><canvas data-ico="gem" width="40" height="40"></canvas><div><b>Gizli Ödüller</b><span>Hazine sandığı, değerli taş, altın kesesi. Fenerle gizli bölmeyi bul, duvarına vurup aç.</span></div></div>
+      <div class="feat"><canvas data-ico="skull" width="40" height="40"></canvas><div><b>Canavarlar</b><span>Mağara Sürüngeni, Taş Muhafız, duvarlardan geçen Ruh Tuzağı ve daha fazlası.</span></div></div>
+      <div class="feat"><canvas data-ico="bars" width="40" height="40"></canvas><div><b>Ekipman ve Gelişim</b><span>Altınla silah, zırh, iksir al. XP topla; Lv5'te Zıplama, Lv10'da Kalkan açılır.</span></div></div>
     </div>
     ${saved ? `<button class="btn" data-act="continue">Devam et · ${esc(cleanName(saved.name) || (CLASSES[saved.hero] || CLASSES.knight).name)}, Kat ${saved.floor}</button>
       <button class="btn ghost" data-act="select">Yeni oyun</button>`
@@ -1989,6 +2254,7 @@ press('bSpin', () => useSkill('spin'));
 press('bJump', () => useSkill('jump'));
 press('bShield', () => useSkill('shield'));
 press('bPotion', drinkPotion);
+press('bLamp', useLamp);
 
 let sw = null;
 cv.addEventListener('pointerdown', e => { initAudio(); sw = { x: e.clientX, y: e.clientY }; });
@@ -2020,6 +2286,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyE') useSkill('jump');
   else if (e.code === 'KeyR') useSkill('shield');
   else if (e.code === 'KeyF') drinkPotion();
+  else if (e.code === 'KeyL') useLamp();
   else if (e.code === 'KeyP' || e.code === 'Escape') {
     if (G && G.state === 'pause') { G.state = 'play'; duck(false); hideOverlay(); } else showPause();
   }
@@ -2139,6 +2406,10 @@ const SFX = {
   jump: () => tone({ f: 250, f2: 760, type: 'square', d: .22, v: .07, filter: ['lowpass', 2200] }),
   bolt: () => { tone({ f: 1500, f2: 280, type: 'sawtooth', d: .24, v: .07, filter: ['lowpass', 3200], rev: .55 }); noise({ d: .16, v: .1, filter: ['highpass', 3200] }); },
   gameover: () => [12, 7, 3, 0, -5].forEach((s, i) => tone({ f: semi(220, s), type: 'triangle', d: .7, v: .13, t: i * .24, rev: .8 })),
+  key: () => [0, 5, 9, 12, 17].forEach((s, i) => tone({ f: semi(784, s), type: 'triangle', d: .35, v: .1, t: i * .06, rev: .6 })),
+  slide: () => noise({ d: .22, v: .1, filter: ['bandpass', 1400, 1], f2: 500 }),
+  turn: () => { noise({ d: .45, v: .16, filter: ['lowpass', 320], f2: 120 }); tone({ f: 110, f2: 80, type: 'triangle', d: .4, v: .12 }); },
+  lamp: () => tone({ f: 523, f2: 784, type: 'triangle', d: .5, v: .08, rev: .7 }),
   tap: () => tone({ f: 880, type: 'square', d: .035, v: .035, filter: ['lowpass', 3000] }),
   swish: () => noise({ d: .08, v: .05, filter: ['highpass', 4000] }),
 };
